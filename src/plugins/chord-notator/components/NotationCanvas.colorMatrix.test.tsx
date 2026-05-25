@@ -88,10 +88,11 @@ describe('NotationCanvas Color Matrix (Phase 2 TDD Checkpoint)', () => {
     // className="absolute top-1/2 -translate-y-1/2 left-[100%] ml-8 text-2xl font-bold text-[#aa3bff] ..."
     // Let's get it by text content "C"
     await waitFor(() => {
-      const chordEl = screen.getByTestId('chord-symbol');
+      const chordEl = screen.getByTestId('chord-symbol-pill');
       expect(chordEl).toBeInTheDocument();
       expect(chordEl).toHaveTextContent('C');
-      expect(chordEl).toHaveClass('text-blue-500');
+      const innerSpan = chordEl.querySelector('span');
+      expect(innerSpan).toHaveClass('text-blue-500');
     });
   });
 });

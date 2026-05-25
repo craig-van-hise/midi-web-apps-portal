@@ -1420,7 +1420,7 @@ const NotationCanvas: React.FC = () => {
         forceUpdate();
       }}
       data-testid="notation-canvas-container"
-      className="notation-canvas-container relative w-full h-[320px] bg-white dark:bg-[#0a0a0a] overflow-visible flex items-start justify-center select-none leading-none"
+      className="notation-canvas-container relative w-[962px] h-[320px] bg-white dark:bg-[#0a0a0a] overflow-visible flex items-center justify-center select-none leading-none rounded-xl shadow-lg border border-gray-200 dark:border-white/10"
       style={{ lineHeight: '1' }}
     >
       {/* Compact Grand Staff System */}
@@ -1448,19 +1448,18 @@ const NotationCanvas: React.FC = () => {
           )}
         </div>
 
-        {/* Chord Symbol Label */}
-        {chordSymbol && (
-          <div 
-            data-testid="chord-symbol"
-            className="absolute top-1/2 -translate-y-1/2 left-[100%] ml-8 text-2xl font-bold text-blue-500 dark:text-blue-400 pointer-events-none whitespace-nowrap"
-            style={{ 
-              fontFamily: "'Quicksand', sans-serif",
-              textShadow: '0 0 15px rgba(59, 130, 246, 0.2)'
-            }}
+        {/* Chord Symbol Label - Floating Pill */}
+        <div 
+          data-testid="chord-symbol-pill"
+          className="absolute top-1/2 -translate-y-1/2 left-[100%] ml-8 z-20 flex items-center justify-center bg-white dark:bg-[#111] shadow-lg rounded-full px-8 py-3 border border-gray-100 dark:border-white/5 transition-all min-w-[120px]"
+        >
+          <span 
+            className="text-2xl font-bold text-blue-500 dark:text-blue-400 whitespace-nowrap pointer-events-none"
+            style={{ fontFamily: "'Jost', sans-serif" }}
           >
-            {chordSymbol}
-          </div>
-        )}
+            {chordSymbol || "-"}
+          </span>
+        </div>
         
         {/* Notes Layer */}
         <div id="notes-layer" data-testid="notes-layer" className="absolute inset-0 pointer-events-none z-10">

@@ -770,3 +770,87 @@ describe('NotationCanvas - Legacy Audio Modal', () => {
     expect(screen.queryByText('Click to Start Audio Engine')).toBeNull();
   });
 });
+
+describe('NotationCanvas - Structural Lock and Symmetrical Pill TDD Tests', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    document.body.innerHTML = '';
+  });
+
+  test('Assert the container possesses the w-[962px] and rounded-xl classes (Phase 1)', () => {
+    (useMidi as any).mockReturnValue({
+      keySignature: 'C Major',
+      splitPoint: 60,
+      lut: Array(4096).fill(null),
+      updateActiveNotes: vi.fn(),
+    });
+
+    render(<NotationCanvas />);
+    const container = screen.getByTestId('notation-canvas-container');
+    expect(container).toHaveClass('w-[962px]');
+    expect(container).toHaveClass('rounded-xl');
+    expect(container).toHaveClass('shadow-lg');
+    expect(container).toHaveClass('border');
+  });
+
+  test('Assert the chord-symbol-pill renders the text "-" when no chord is active (Phase 2)', async () => {
+    (useMidi as any).mockReturnValue({
+      keySignature: 'C Major',
+      splitPoint: 60,
+      lut: Array(4096).fill(null),
+      updateActiveNotes: vi.fn(),
+    });
+
+    render(<NotationCanvas />);
+    const pill = screen.getByTestId('chord-symbol-pill');
+    expect(pill).toBeInTheDocument();
+    expect(pill).toHaveTextContent('-');
+  });
+
+  test('Assert the chord-symbol-pill renders the text "C" or "Cmaj" given active MIDI notes representing C Major (Phase 2)', async () => {
+    const mockLut = Array(4096).fill(null);
+    mockLut[145] = {
+      decimal: 145,
+      chord_type: "",
+      root_pc: 0,
+      chord_intervals: ["1", "3", "5"],
+      base_triad: "maj",
+      base_7th: 0,
+      cardinality: 3,
+      pitch_class_set: [0, 4, 7]
+    };
+
+    (useMidi as any).mockReturnValue({
+      keySignature: 'C Major',
+      splitPoint: 60,
+      lut: mockLut,
+      updateActiveNotes: vi.fn(),
+    });
+
+    render(<NotationCanvas />);
+    
+    // Play C Major (C4=60, E4=64, G4=67)
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x90, 60, 100]) }
+      }));
+    });
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x90, 64, 100]) }
+      }));
+    });
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x90, 67, 100]) }
+      }));
+    });
+
+    await waitFor(() => {
+      const pill = screen.getByTestId('chord-symbol-pill');
+      expect(pill).toBeInTheDocument();
+      const text = pill.textContent;
+      expect(text === 'C' || text === 'Cmaj').toBe(true);
+    });
+  });
+});

@@ -98,7 +98,7 @@ const ChordNotatorContent = ({
     <div className="flex flex-col h-screen overflow-hidden bg-[#f8f7f2] dark:bg-[#0a0a0a]">
       {/* Focused Notation Workspace & Keyboard */}
       <main className="flex-1 overflow-y-auto pb-[400px] w-full flex flex-col items-center justify-start gap-[15px] pt-8">
-        <div className="w-full max-w-[800px] flex justify-center leading-none" style={{ lineHeight: "1" }}>
+        <div className="w-full max-w-[962px] flex justify-center leading-none" style={{ lineHeight: "1" }}>
           <NotationCanvas />
         </div>
         
