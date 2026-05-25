@@ -316,7 +316,7 @@ export default function PitchClassMatrix({
     const pitchStr = NOTES[(logicalY + rootNote) % 12];
     const isActive = (Object.values(activeNotes) as { xCol: number; isRemapped: boolean }[]).some(n => mapping[n.xCol] === logicalY);
     return (
-      <div key={i} style={{ height: '25px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '8px' }} className={isActive ? 'text-[var(--color-primary)] font-bold' : ''}>
+      <div key={i} style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '8px' }} className={isActive ? 'text-[var(--color-primary)] font-bold' : ''}>
         {pitchStr}
       </div>
     );
@@ -333,7 +333,7 @@ export default function PitchClassMatrix({
   });
 
   return (
-    <div className="headless-matrix-plugin bg-[#f3f4f6] text-[#111111] p-6 w-full max-w-5xl mx-auto flex flex-col justify-start items-center">
+    <div className="headless-matrix-plugin bg-white text-[#111111] p-6 w-full min-w-max min-h-screen flex flex-col justify-start items-center">
       <main className="flex flex-row justify-center items-start gap-6 w-full max-w-5xl">
         {/* LEFT COLUMN: PRESETS */}
         <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm w-[300px] flex flex-col gap-3 h-fit shrink-0">
@@ -385,8 +385,8 @@ export default function PitchClassMatrix({
         </div>
 
         {/* CENTER COLUMN: MATRIX */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: 'auto' }}>
-          <div className="w-[300px] text-center mb-2 text-lg font-bold flex items-center justify-center border-b pb-2">
+        <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm w-fit shrink-0 flex flex-col items-center">
+          <div className="w-[240px] text-center mb-2 text-lg font-bold flex items-center justify-center border-b pb-2">
             <span>{NOTES[rootNote]}</span>
             {activePreset.isFactory ? (
               <span className="ml-2 font-medium">{activePreset.name}</span>
@@ -407,7 +407,7 @@ export default function PitchClassMatrix({
             {/* Matrix + X Axis */}
             <div className="flex flex-col relative">
               <div style={{ position: 'relative' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gridTemplateRows: 'repeat(13, 1fr)', width: '300px', height: '325px', gap: '0', border: '1px solid #ccc', boxSizing: 'border-box' }} className="border-gray-300 dark:border-gray-700">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gridTemplateRows: 'repeat(13, 1fr)', width: '240px', height: '260px', gap: '0', border: '1px solid #ccc', boxSizing: 'border-box' }} className="border-gray-300 dark:border-gray-700">
                   {Array.from({ length: 13 }).map((_, yVisual) => {
                     const logicalY = 12 - yVisual;
                     return Array.from({ length: 12 }).map((_, xCol) => {
@@ -457,10 +457,10 @@ export default function PitchClassMatrix({
                   </defs>
                   {Array.from(new Set((Object.values(activeNotes) as { xCol: number; isRemapped: boolean }[]).filter(n => n.isRemapped).map(n => n.xCol))).map((xCol) => {
                     const mappedY = mapping[xCol];
-                    const startX = (xCol + 0.5) * (300 / 12);
-                    const startY = (12 - xCol + 0.5) * (325 / 13);
-                    const endX = (xCol + 0.5) * (300 / 12);
-                    const endY = (12 - mappedY + 0.5) * (325 / 13);
+                    const startX = (xCol + 0.5) * (240 / 12);
+                    const startY = (12 - xCol + 0.5) * (260 / 13);
+                    const endX = (xCol + 0.5) * (240 / 12);
+                    const endY = (12 - mappedY + 0.5) * (260 / 13);
                     return (
                       <line key={xCol} x1={startX} y1={startY} x2={endX} y2={endY} stroke="#4ade80" strokeWidth="2.5" strokeDasharray="3 3" markerEnd="url(#arrowhead)" />
                     );
@@ -468,19 +468,19 @@ export default function PitchClassMatrix({
                 </svg>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', width: '300px', padding: '0', marginTop: '4px' }} className="label-mono text-gray-450">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', width: '240px', padding: '0', marginTop: '4px' }} className="label-mono text-gray-450">
                 {xLabels}
               </div>
 
-              <div className="text-center mt-1 axis-title w-[300px]">INPUT NOTE</div>
+              <div className="text-center mt-1 axis-title w-[240px]">INPUT NOTE</div>
             </div>
 
             {/* Y-Axis Components right of Matrix */}
-            <div className="flex h-[325px] self-start ml-2 w-[50px]">
-              <div className="flex flex-col justify-between h-[325px] text-left label-mono text-gray-450 w-[50px]">
+            <div className="flex h-[260px] self-start ml-2 w-[50px]">
+              <div className="flex flex-col justify-between h-[260px] text-left label-mono text-gray-450 w-[50px]">
                 {yLabels}
               </div>
-              <div className="flex flex-col items-center justify-center h-[325px] ml-1">
+              <div className="flex flex-col items-center justify-center h-[260px] ml-1">
                 <span className="axis-title y-axis-title">OUTPUT NOTE</span>
               </div>
             </div>
@@ -511,7 +511,7 @@ export default function PitchClassMatrix({
         </div>
       </main>
 
-      <div className="mt-4 px-2 w-full overflow-x-auto pb-4 max-w-5xl">
+      <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm w-fit mx-auto mt-4 flex justify-center overflow-hidden">
         <Piano88 pianoArrows={pianoArrows} />
       </div>
 

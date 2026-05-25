@@ -16,10 +16,10 @@ interface Piano88Props {
  * - Performance: Direct DOM manipulation via updateKeyVisuals88
  */
 
-const WHITE_KEY_WIDTH = 26;
-const WHITE_KEY_HEIGHT = 120;
-const BLACK_KEY_WIDTH = 15;
-const BLACK_KEY_HEIGHT = 80;
+const WHITE_KEY_WIDTH = 18;
+const WHITE_KEY_HEIGHT = 88;
+const BLACK_KEY_WIDTH = 11;
+const BLACK_KEY_HEIGHT = 56;
 
 const getKeyCenter = (note: number) => {
     let whiteIndex = 0;
@@ -29,11 +29,11 @@ const getKeyCenter = (note: number) => {
         }
     }
     const isBlack = [1, 3, 6, 8, 10].includes(note % 12);
-    return isBlack ? whiteIndex * 26 : whiteIndex * 26 + 13;
+    return isBlack ? whiteIndex * 18 : whiteIndex * 18 + 9;
 };
 
 const getKeyY = (note: number) => {
-    return [1, 3, 6, 8, 10].includes(note % 12) ? 60 : 100;
+    return [1, 3, 6, 8, 10].includes(note % 12) ? 44 : 75;
 };
 
 export const Piano88: React.FC<Piano88Props> = ({ pianoArrows = [] }) => {
@@ -77,11 +77,11 @@ export const Piano88: React.FC<Piano88Props> = ({ pianoArrows = [] }) => {
                                 position: 'absolute',
                                 zIndex: 10,
                                 top: 0,
-                                right: '-7.5px', // Centered on the seam (half of 15px)
+                                right: '-5.5px', // Centered on the seam (half of 11px)
                                 width: `${BLACK_KEY_WIDTH}px`,
                                 height: `${BLACK_KEY_HEIGHT}px`,
                                 backgroundColor: '#3a3a3a',
-                                borderBottom: '8px solid #050505',
+                                borderBottom: '6px solid #050505',
                                 borderLeft: '2px solid #050505',
                                 borderRight: '2px solid #050505',
                                 borderTop: 'none',
@@ -108,11 +108,11 @@ export const Piano88: React.FC<Piano88Props> = ({ pianoArrows = [] }) => {
     }
 
     return (
-        <div style={{ overflowX: 'auto', padding: '20px' }} className="w-full">
+        <div className="flex justify-center w-full">
             <div
                 style={{
                     display: 'flex',
-                    width: '1352px', // 52 white keys * 26px
+                    width: '936px', // 52 white keys * 18px
                     height: `${WHITE_KEY_HEIGHT}px`,
                     backgroundColor: '#fff',
                     borderTop: '2px solid #333',
@@ -143,7 +143,7 @@ export const Piano88: React.FC<Piano88Props> = ({ pianoArrows = [] }) => {
                         const startY = getKeyY(arrow.input);
                         const endY = getKeyY(arrow.output);
                         const cx = (startX + endX) / 2;
-                        const cy = startY !== endY ? startY : startY - 40;
+                        const cy = startY !== endY ? startY : startY - 25;
                         return (
                             <path
                                 key={`${arrow.input}-${arrow.output}-${idx}`}
