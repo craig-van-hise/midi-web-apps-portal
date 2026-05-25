@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import throttle from 'lodash/throttle';
 import { Settings, Info, X, ChevronDown, ChevronRight, Plus, Copy, Trash2 } from 'lucide-react';
 import { Piano88, updateKeyVisuals88, PianoArrow } from './components/88-key';
 import './styles/matrix.css';
@@ -43,7 +44,20 @@ export default function PitchClassMatrix({
   triggerPanic: number;
 }) {
   const [activeNotes, setActiveNotes] = useState<Record<number, { xCol: number, isRemapped: boolean }>>({});
+  const activeNotesRef = useRef<Record<number, { xCol: number, isRemapped: boolean }>>({});
   const [pianoArrows, setPianoArrows] = useState<PianoArrow[]>([]);
+  const pianoArrowsRef = useRef<PianoArrow[]>([]);
+
+  const syncMatrixUI = useMemo(() => throttle(() => {
+    setActiveNotes({ ...activeNotesRef.current });
+    setPianoArrows([...pianoArrowsRef.current]);
+  }, 32), []);
+
+  useEffect(() => {
+    return () => {
+      syncMatrixUI.cancel();
+    };
+  }, [syncMatrixUI]);
   const [presetsExpanded, setPresetsExpanded] = useState(true);
   const [infoOpen, setInfoOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -133,52 +147,45 @@ export default function PitchClassMatrix({
       outputNoteCountsRef.current.set(outNote, currentCount + 1);
 
       activeNotesMapRef.current.set(data1, outNote);
-
+ 
       sendMidiOut([0x90 | channel, outNote, data2]);
-
+ 
       const isRemapped = data1 !== outNote;
       if (!isRemapped) {
         updateKeyVisuals88(data1, '#2563eb');
       } else {
         updateKeyVisuals88(data1, '#f97316');
         updateKeyVisuals88(outNote, '#2563eb');
-        setPianoArrows(prev => [...prev, { input: data1, output: outNote }]);
+        pianoArrowsRef.current.push({ input: data1, output: outNote });
       }
-
-      setActiveNotes(prev => ({ ...prev, [data1]: { xCol: inputCol, isRemapped } }));
+ 
+      activeNotesRef.current[data1] = { xCol: inputCol, isRemapped };
+      syncMatrixUI();
     }
     else if (isNoteOff) {
       const outNote = activeNotesMapRef.current.get(data1);
       if (outNote !== undefined) {
         activeNotesMapRef.current.delete(data1);
-
+ 
         const currentCount = outputNoteCountsRef.current.get(outNote) || 1;
         const nextCount = currentCount - 1;
         outputNoteCountsRef.current.set(outNote, nextCount);
-
+ 
         if (data1 !== outNote) {
           updateKeyVisuals88(data1, '');
-          setPianoArrows(prev => {
-            const idx = prev.findIndex(p => p.input === data1 && p.output === outNote);
-            if (idx > -1) {
-              const newArr = [...prev];
-              newArr.splice(idx, 1);
-              return newArr;
-            }
-            return prev;
-          });
+          const idx = pianoArrowsRef.current.findIndex(p => p.input === data1 && p.output === outNote);
+          if (idx > -1) {
+            pianoArrowsRef.current.splice(idx, 1);
+          }
         }
-
+ 
         if (nextCount <= 0) {
           updateKeyVisuals88(outNote, '');
           sendMidiOut([0x80 | channel, outNote, 0]);
         }
       }
-      setActiveNotes(prev => {
-        const next = { ...prev };
-        delete next[data1];
-        return next;
-      });
+      delete activeNotesRef.current[data1];
+      syncMatrixUI();
     }
     else {
       // Pass CC and Pitch Bend
@@ -199,6 +206,8 @@ export default function PitchClassMatrix({
     });
     activeNotesMapRef.current.clear();
     outputNoteCountsRef.current.clear();
+    activeNotesRef.current = {};
+    pianoArrowsRef.current = [];
     setActiveNotes({});
     setPianoArrows([]);
 

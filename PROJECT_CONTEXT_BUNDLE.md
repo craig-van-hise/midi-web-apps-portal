@@ -11,7 +11,12 @@
 |  ├── # 13.md
 |  ├── # 14.md
 |  ├── # 15.md
+|  ├── # 16.md
+|  ├── # 17.md
+|  ├── # 18.md
+|  ├── # 19.md
 |  ├── # 2.md
+|  ├── # 20.md
 |  ├── # 3.md
 |  ├── # 4.md
 |  ├── # 5.md
@@ -19,6 +24,7 @@
 |  ├── # 7.md
 |  ├── # 8.md
 |  └── # 9.md
+├── PROJECT_CONTEXT_BUNDLE.md
 ├── PROJECT_STATE.md
 ├── README.md
 ├── README_original.md
@@ -46,19 +52,24 @@
 |  |  ├── App.css
 |  |  ├── App.jsx
 |  |  ├── App.test.jsx
-|  |  └── rompler
-|  |     ├── Knob.jsx
-|  |     ├── MasterRompler.jsx
-|  |     ├── VUMeter.jsx
-|  |     ├── engine.js
-|  |     ├── rompler.css
-|  |     ├── usePersistentState.js
-|  |     └── utils.js
+|  |  ├── rompler
+|  |  |  ├── Knob.jsx
+|  |  |  ├── MasterRompler.jsx
+|  |  |  ├── VUMeter.jsx
+|  |  |  ├── engine.js
+|  |  |  ├── engine.test.js
+|  |  |  ├── rompler.css
+|  |  |  ├── usePersistentState.js
+|  |  |  └── utils.js
+|  |  └── utils
+|  |     ├── latencyProfiler.js
+|  |     └── latencyProfiler.test.js
 |  ├── hooks
 |  ├── index.css
 |  ├── main.jsx
 |  ├── plugins
 |  |  ├── DummyPlugin.jsx
+|  |  ├── DummyPlugin.test.jsx
 |  |  ├── chord-notator
 |  |  |  ├── audio
 |  |  |  |  └── engine.ts
@@ -129,7 +140,7 @@
 |     └── ChameleonDummy.test.jsx
 └── vite.config.js
 
-directory: 979 file: 7131
+directory: 982 file: 8192
 
 ignored: directory (143)
 
@@ -170,12 +181,16 @@ midi-web-apps-portal/
     │   ├── App.css
     │   ├── App.jsx
     │   ├── App.test.jsx
-    │   └── rompler/
-    │       ├── MasterRompler.css
-    │       └── MasterRompler.jsx
+    │   ├── rompler/
+    │   │   ├── MasterRompler.css
+    │   │   └── MasterRompler.jsx
+    │   └── utils/
+    │       ├── latencyProfiler.js
+    │       └── latencyProfiler.test.js
     ├── hooks/
     ├── plugins/
     │   ├── DummyPlugin.jsx
+    │   ├── DummyPlugin.test.jsx
     │   ├── chord-notator/
     │   ├── dynamics/
     │   ├── monitor/
@@ -191,6 +206,7 @@ midi-web-apps-portal/
 - **Styling**: Tailwind CSS v4, Custom CSS variables, Framer Motion (via `motion`)
 - **Audio Engine**: Tone.js (via `tone`, `smplr`), custom sample-based Rompler
 - **State Management**: React State & Context, Zustand
+- **Utility / Performance**: Lodash (`lodash/throttle`) for frame-rate limiting UI rendering
 - **Icons**: Lucide React
 - **Testing**: Vitest, React Testing Library
 
@@ -200,17 +216,18 @@ midi-web-apps-portal/
   - Global master controls (Power, Panic reset, Info modals, Settings panels).
   - Global Web MIDI API manager routing hardware input directly down to active plugins.
   - Global Sample-based Audio Rompler drawer that plugins hook into using a unified MIDI output prop.
+  - **UI Throttling**: Frame-rate limited state sync (~30fps / 32ms) separating instant synchronous audio triggers from asynchronous rendering cycles.
 - **Integrated Plugins**:
   - **Chord Notator**: Renders sheet music notation (using Bravura music font and VexFlow-style rendering) from live MIDI inputs.
-  - **Pitch Class Matrix**: Maps and quantizes incoming MIDI notes to selected roots and scales in real-time.
+  - **Pitch Class Matrix**: Maps and quantizes incoming MIDI notes to selected roots and scales in real-time. Includes arrow visualizations and throttled keyboard mapping.
   - **MIDI Monitor**: Visualizes live MIDI status messages, note numbers, velocities, and CC changes.
   - **MIDI Dynamics**: Multi-mode velocity curve adjustment with compression, expansion, and custom thresholds.
   - **Note Range Filter**: Restricts, clips, or wraps incoming MIDI notes based on user-defined key limits.
 
 ## 4. Recent Evolution
-- **Initial Setup**: Initialized the project configuration and the global modular architecture.
-- **Core Layout & State**: Completed implementation of the master layout UI (`App.jsx`), global MIDI access hooks, and standard routing to the Tone.js audio engine.
-- **Headless API**: Configured standard prop-based message passing interface between host and plugins.
+- **UI Throttling & Latency Optimization**: Resolved a "strummed" audio effect during polyphonic chord inputs by throttling host and plugin state updates to 32ms using `useRef` + `lodash/throttle` while keeping Tone.js audio generation strictly synchronous.
+- **Midi Event Bus Refactoring**: Moved from state-based `midiIn` prop-drilling to a ref-based `EventTarget` Event Bus, eliminating React state batching issues and stuck notes.
+- **CI/CD Deployment Setup**: Added a custom GitHub Actions workflow for automatic deployment to GitHub Pages.
 
 
 ### FILE: README.md
@@ -308,7 +325,7 @@ Your plugin must export a single default React component from its root `index.js
 
 ```jsx
 export default function YourNewPlugin({ 
-  midiIn,         // Array: Raw MIDI data from hardware (e.g., [144, 60, 100])
+  midiBus,        // EventTarget: Event bus for incoming MIDI messages
   onMidiOut,      // Function: Send processed MIDI back to the Rompler
   isBypassed,     // Boolean: True if the Portal's 'Power' button is off
   showInfo,       // Boolean: True if the Portal's 'i' button is toggled
@@ -316,12 +333,20 @@ export default function YourNewPlugin({
   triggerPanic    // Boolean/Counter: Changes when Portal '!' is clicked
 }) {
   
-  // Example: Route incoming MIDI to your internal engine
+  // Example: Listen to incoming MIDI events from the bus
   useEffect(() => {
-    if (midiIn && !isBypassed) {
-      processMidi(midiIn);
-    }
-  }, [midiIn, isBypassed]);
+    if (!midiBus || isBypassed) return;
+
+    const handleMidi = (e) => {
+      const data = e.detail; // Array format e.g. [144, 60, 100]
+      processMidi(data);
+    };
+
+    midiBus.addEventListener('midi', handleMidi);
+    return () => {
+      midiBus.removeEventListener('midi', handleMidi);
+    };
+  }, [midiBus, isBypassed]);
 
   // Example: Send processed notes to the master audio engine
   const handleNoteGenerated = (noteData) => {
@@ -337,12 +362,11 @@ export default function YourNewPlugin({
     </div>
   );
 }
-
 ```
 
 ### 3. Register the Plugin
 
-Open `src/core/config.js` (or `appRegistry.js`) and add your new module to the array:
+Open `src/config/appRegistry.js` (or `src/core/config.js` depending on setup) and add your new module to the array:
 
 ```javascript
 import YourNewPlugin from '../plugins/your-new-plugin';
@@ -357,9 +381,67 @@ export const appRegistry = [
     description: "Brief description for the sidebar."
   }
 ];
-
 ```
 
+---
+
+## ⚡ Performance Guidelines: UI Throttling
+
+To prevent **Main Thread Blocking** and audio latency/choking (such as the "strummed" audio artifact during rapid polyphonic chords), you must follow these guidelines:
+
+1. **Keep Audio Path Synchronous:** The `onMidiOut` callback and Tone.js audio generation must execute synchronously and immediately upon receiving a MIDI event.
+2. **Decouple React Renders:** Never trigger a React state update (`useState` setter) synchronously inside your MIDI message listeners.
+3. **Use the `useRef` + `throttle` Pattern:** 
+   - Store incoming note arrays, visual states, and logs in a mutable React `useRef`.
+   - Update the `useRef` synchronously on every MIDI event.
+   - Use `lodash/throttle` (usually ~30fps/32ms) to flush the ref's content to the React state.
+
+Example throttled implementation:
+```javascript
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import throttle from 'lodash/throttle';
+
+export default function MyPlugin({ midiBus, onMidiOut, isBypassed }) {
+  const [activeNotes, setActiveNotes] = useState([]);
+  const activeNotesRef = useRef([]);
+
+  // Throttle state updates to ~30fps
+  const syncNotesUI = useMemo(() => throttle(() => {
+    setActiveNotes([...activeNotesRef.current]);
+  }, 32), []);
+
+  useEffect(() => {
+    return () => syncNotesUI.cancel(); // Cleanup on unmount
+  }, [syncNotesUI]);
+
+  useEffect(() => {
+    if (!midiBus || isBypassed) return;
+
+    const handleMidiEvent = (e) => {
+      const data = e.detail;
+      const [status, note, velocity] = data;
+      const isNoteOn = (status & 0xf0) === 0x90 && velocity > 0;
+
+      // 1. Audio remains synchronous
+      if (isNoteOn) {
+        onMidiOut(data);
+      }
+
+      // 2. UI rendering state is throttled
+      if (isNoteOn) {
+        activeNotesRef.current.push(note);
+      } else {
+        activeNotesRef.current = activeNotesRef.current.filter(n => n !== note);
+      }
+      syncNotesUI();
+    };
+
+    midiBus.addEventListener('midi', handleMidiEvent);
+    return () => midiBus.removeEventListener('midi', handleMidiEvent);
+  }, [midiBus, isBypassed, onMidiOut, syncNotesUI]);
+
+  // ...
+}
 ```
 
 

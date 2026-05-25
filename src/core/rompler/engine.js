@@ -1,5 +1,6 @@
 import * as Tone from 'tone';
 import { Soundfont } from 'smplr';
+import { latencyProfiler } from '../utils/latencyProfiler';
 
 // The baseUrl containing samples
 const BASE_URL = 'https://nbrosowsky.github.io/tonejs-instruments/samples/';
@@ -109,7 +110,12 @@ class AudioEngine {
     if (this.isInitialized) return;
     
     await Tone.start();
-    Tone.context.lookAhead = 0.01;
+    Tone.context.lookAhead = 0.002;
+    
+    if (Tone.context.rawContext && Tone.context.rawContext.baseLatency !== undefined) {
+      // Tone.js automatically attempts interactive latency, but we force lookAhead down.
+      Tone.context.lookAhead = 0.002; // 2ms safety buffer instead of 10ms
+    }
     
     // The Chain: Sampler -> PanVol -> ChannelSplitter -> MeterL / MeterR
     //                            \-> Reverb -> Destination
@@ -225,6 +231,14 @@ class AudioEngine {
   noteOn(note, velocity = 1) {
     if (!this.sampler || !this.isInitialized || this.isInstrumentLoading) return;
     
+    let midiNote;
+    if (typeof note === 'number') {
+      midiNote = note;
+    } else {
+      midiNote = Tone.Frequency(note).toMidi();
+    }
+    latencyProfiler.markAudioTrigger(midiNote);
+
     if (this.sampler instanceof Tone.Sampler) {
       this.sampler.triggerAttack(note, Tone.now(), velocity);
     } else if (this.sampler instanceof LoopedSampler) {

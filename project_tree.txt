@@ -9,7 +9,12 @@
 |  ├── # 13.md
 |  ├── # 14.md
 |  ├── # 15.md
+|  ├── # 16.md
+|  ├── # 17.md
+|  ├── # 18.md
+|  ├── # 19.md
 |  ├── # 2.md
+|  ├── # 20.md
 |  ├── # 3.md
 |  ├── # 4.md
 |  ├── # 5.md
@@ -17,6 +22,7 @@
 |  ├── # 7.md
 |  ├── # 8.md
 |  └── # 9.md
+├── PROJECT_CONTEXT_BUNDLE.md
 ├── PROJECT_STATE.md
 ├── README.md
 ├── README_original.md
@@ -44,19 +50,24 @@
 |  |  ├── App.css
 |  |  ├── App.jsx
 |  |  ├── App.test.jsx
-|  |  └── rompler
-|  |     ├── Knob.jsx
-|  |     ├── MasterRompler.jsx
-|  |     ├── VUMeter.jsx
-|  |     ├── engine.js
-|  |     ├── rompler.css
-|  |     ├── usePersistentState.js
-|  |     └── utils.js
+|  |  ├── rompler
+|  |  |  ├── Knob.jsx
+|  |  |  ├── MasterRompler.jsx
+|  |  |  ├── VUMeter.jsx
+|  |  |  ├── engine.js
+|  |  |  ├── engine.test.js
+|  |  |  ├── rompler.css
+|  |  |  ├── usePersistentState.js
+|  |  |  └── utils.js
+|  |  └── utils
+|  |     ├── latencyProfiler.js
+|  |     └── latencyProfiler.test.js
 |  ├── hooks
 |  ├── index.css
 |  ├── main.jsx
 |  ├── plugins
 |  |  ├── DummyPlugin.jsx
+|  |  ├── DummyPlugin.test.jsx
 |  |  ├── chord-notator
 |  |  |  ├── audio
 |  |  |  |  └── engine.ts
@@ -127,7 +138,7 @@
 |     └── ChameleonDummy.test.jsx
 └── vite.config.js
 
-directory: 979 file: 7131
+directory: 982 file: 8192
 
 ignored: directory (143)
 

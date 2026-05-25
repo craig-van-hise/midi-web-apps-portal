@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import throttle from 'lodash/throttle';
 
 export default function DummyPlugin({
   midiBus,
@@ -9,12 +10,27 @@ export default function DummyPlugin({
   triggerPanic
 }) {
   const [logs, setLogs] = useState([]);
+  const logsRef = useRef([]);
+
+  const syncLogsUI = useMemo(() => throttle(() => {
+    setLogs([...logsRef.current]);
+  }, 32), []);
+
+  useEffect(() => {
+    return () => {
+      syncLogsUI.cancel();
+    };
+  }, [syncLogsUI]);
 
   const processMidi = (data) => {
-    setLogs((prev) => [`[MIDI IN] ${JSON.stringify(data)}`, ...prev.slice(0, 19)]);
+    // 1. Synchronous Outward Dispatch
     if (onMidiOut) {
       onMidiOut(data);
     }
+
+    // 2. Throttled UI update
+    logsRef.current = [`[MIDI IN] ${JSON.stringify(data)}`, ...logsRef.current.slice(0, 19)];
+    syncLogsUI();
   };
 
   useEffect(() => {
@@ -31,7 +47,8 @@ export default function DummyPlugin({
 
   useEffect(() => {
     if (triggerPanic !== undefined) {
-      setLogs((prev) => [`[PANIC TRIGGERED] state=${triggerPanic}`, ...prev.slice(0, 19)]);
+      logsRef.current = [`[PANIC TRIGGERED] state=${triggerPanic}`, ...logsRef.current.slice(0, 19)];
+      setLogs([...logsRef.current]);
     }
   }, [triggerPanic]);
 

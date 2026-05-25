@@ -1,15 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import mockDummyPlugin from '../plugins/DummyPlugin';
 import App from './App';
 import { appRegistry } from '../config/appRegistry';
 
 let capturedMidiBus = null;
+let capturedOnMidiOut = null;
 
 vi.mock('../plugins/note-range-filter', () => ({
   default: function MockNoteRangeFilter(props) {
     capturedMidiBus = props.midiBus;
+    capturedOnMidiOut = props.onMidiOut;
     return React.createElement(mockDummyPlugin, props);
   }
 }));
@@ -145,5 +147,93 @@ describe('App Portal Monolith Harness Tests', () => {
 
     // Clean up
     capturedMidiBus.removeEventListener('midi', midiSpy);
+  });
+
+  it('given a burst of 4 handleRomplerOutput Note On calls within 5ms, then the audio triggers execute 4 times instantly, but setActiveNotes is only called once via the throttler', async () => {
+    let setActiveNotesSpy = null;
+    const originalUseState = React.useState;
+    const useStateSpy = vi.spyOn(React, 'useState').mockImplementation((initialValue) => {
+      const [val, setVal] = originalUseState(initialValue);
+      const spy = vi.fn((updater) => setVal(updater));
+      if (Array.isArray(initialValue) && initialValue.length === 0) {
+        if (!setActiveNotesSpy) {
+          setActiveNotesSpy = spy;
+        } else {
+          setActiveNotesSpy = spy;
+        }
+        return [val, spy];
+      }
+      return [val, setVal];
+    });
+
+    render(<App />);
+
+    const thirdSidebarItem = screen.getByRole('heading', { name: 'VV | MIDI Note Range Filter', level: 3 });
+    fireEvent.click(thirdSidebarItem);
+
+    await waitFor(() => {
+      expect(capturedOnMidiOut).not.toBeNull();
+    });
+
+    vi.useFakeTimers();
+
+    const playNoteOnSpy = vi.fn();
+    let currentPlayNoteOn = null;
+    Object.defineProperty(window, 'playNoteOn', {
+      get() {
+        return (note, velocity) => {
+          playNoteOnSpy(note, velocity);
+          if (typeof currentPlayNoteOn === 'function') {
+            currentPlayNoteOn(note, velocity);
+          }
+        };
+      },
+      set(val) {
+        currentPlayNoteOn = val;
+      },
+      configurable: true
+    });
+
+    if (setActiveNotesSpy) {
+      setActiveNotesSpy.mockClear();
+    }
+
+    act(() => {
+      capturedOnMidiOut([0x90, 60, 100]); // t=0
+    });
+    vi.advanceTimersByTime(1);
+    act(() => {
+      capturedOnMidiOut([0x90, 61, 100]); // t=1
+    });
+    vi.advanceTimersByTime(1);
+    act(() => {
+      capturedOnMidiOut([0x90, 62, 100]); // t=2
+    });
+    vi.advanceTimersByTime(1);
+    act(() => {
+      capturedOnMidiOut([0x90, 63, 100]); // t=3
+    });
+
+    expect(playNoteOnSpy).toHaveBeenCalledTimes(4);
+    expect(playNoteOnSpy).toHaveBeenNthCalledWith(1, 60, 100);
+    expect(playNoteOnSpy).toHaveBeenNthCalledWith(2, 61, 100);
+    expect(playNoteOnSpy).toHaveBeenNthCalledWith(3, 62, 100);
+    expect(playNoteOnSpy).toHaveBeenNthCalledWith(4, 63, 100);
+
+    if (setActiveNotesSpy) {
+      expect(setActiveNotesSpy).toHaveBeenCalledTimes(1);
+    }
+
+    act(() => {
+      vi.advanceTimersByTime(35);
+    });
+
+    if (setActiveNotesSpy) {
+      expect(setActiveNotesSpy).toHaveBeenCalledTimes(2);
+    }
+
+    useStateSpy.mockRestore();
+    vi.useRealTimers();
+    delete window.playNoteOn;
   });
 });

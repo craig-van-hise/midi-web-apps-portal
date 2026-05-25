@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import throttle from 'lodash/throttle';
 import * as Icons from 'lucide-react';
 import { appRegistry } from '../config/appRegistry';
 import DummyPlugin from '../plugins/DummyPlugin';
@@ -9,6 +10,7 @@ import MidiDynamics from '../plugins/dynamics';
 import NoteRangeFilter from '../plugins/note-range-filter';
 import { MasterRompler } from './rompler/MasterRompler';
 import { motion, AnimatePresence } from 'framer-motion';
+import { latencyProfiler } from './utils/latencyProfiler';
 
 function AppIcon({ name, className }) {
   const IconComponent = Icons[name] || Icons.Music;
@@ -51,32 +53,41 @@ function App() {
 
   // Rompler states (for Phase 5)
   const [activeNotes, setActiveNotes] = useState([]);
+  const activeNotesRef = useRef([]);
   const [romplerLoaded, setRomplerLoaded] = useState(false);
   const [volume, setVolume] = useState(-12); // dB
+
+  const syncActiveNotesUI = useMemo(() => throttle(() => {
+    setActiveNotes([...activeNotesRef.current]);
+  }, 32), []);
 
   // Downstream MIDI Out handler (Plugin-to-Portal)
   const handleRomplerOutput = useCallback((midiData) => {
     if (!midiData || midiData.length === 0) return;
     const [status, note, velocity] = midiData;
     const command = status & 0xf0;
+
+    // 1. SACRED AUDIO EXECUTION (Synchronous)
     if (command === 0x90 && velocity > 0) {
-      // Note On
-      setActiveNotes((prev) => {
-        // Prevent duplicate active notes in monitor
-        if (prev.some((n) => n.note === note)) return prev;
-        return [...prev, { note, velocity, time: Date.now() }];
-      });
       if (window.playNoteOn) {
         window.playNoteOn(note, velocity);
       }
     } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
-      // Note Off
-      setActiveNotes((prev) => prev.filter((n) => n.note !== note));
       if (window.playNoteOff) {
         window.playNoteOff(note);
       }
     }
-  }, []);
+
+    // 2. DEFERRED UI RENDER (Asynchronous & Throttled)
+    if (command === 0x90 && velocity > 0) {
+      if (!activeNotesRef.current.some((n) => n.note === note)) {
+        activeNotesRef.current.push({ note, velocity, time: Date.now() });
+      }
+    } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+      activeNotesRef.current = activeNotesRef.current.filter((n) => n.note !== note);
+    }
+    syncActiveNotesUI();
+  }, [syncActiveNotesUI]);
 
   // Set up Web MIDI API access
   useEffect(() => {
@@ -116,6 +127,11 @@ function App() {
     const handleMidiMessage = (message) => {
       const data = Array.from(message.data);
       if (isPowerActive) {
+        const [status, note, velocity] = data;
+        const isNoteOn = (status & 0xf0) === 0x90 && velocity > 0;
+        if (isNoteOn) {
+          latencyProfiler.markInput(note);
+        }
         const customEvent = new CustomEvent('midi', { detail: data });
         midiBusRef.current.dispatchEvent(customEvent);
       }
@@ -130,6 +146,7 @@ function App() {
   // Reset states on active app transition
   useEffect(() => {
     setActiveNotes([]);
+    activeNotesRef.current = [];
     setIsInfoModalOpen(false);
     setIsSettingsModalOpen(false);
     if (window.romplerPanic) {
@@ -143,6 +160,7 @@ function App() {
 
   const handlePanicClick = () => {
     setActiveNotes([]);
+    activeNotesRef.current = [];
     setPanicTriggerState((prev) => prev + 1);
     if (window.romplerPanic) {
       window.romplerPanic();

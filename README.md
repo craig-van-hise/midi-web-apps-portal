@@ -91,7 +91,7 @@ Your plugin must export a single default React component from its root `index.js
 
 ```jsx
 export default function YourNewPlugin({ 
-  midiIn,         // Array: Raw MIDI data from hardware (e.g., [144, 60, 100])
+  midiBus,        // EventTarget: Event bus for incoming MIDI messages
   onMidiOut,      // Function: Send processed MIDI back to the Rompler
   isBypassed,     // Boolean: True if the Portal's 'Power' button is off
   showInfo,       // Boolean: True if the Portal's 'i' button is toggled
@@ -99,12 +99,20 @@ export default function YourNewPlugin({
   triggerPanic    // Boolean/Counter: Changes when Portal '!' is clicked
 }) {
   
-  // Example: Route incoming MIDI to your internal engine
+  // Example: Listen to incoming MIDI events from the bus
   useEffect(() => {
-    if (midiIn && !isBypassed) {
-      processMidi(midiIn);
-    }
-  }, [midiIn, isBypassed]);
+    if (!midiBus || isBypassed) return;
+
+    const handleMidi = (e) => {
+      const data = e.detail; // Array format e.g. [144, 60, 100]
+      processMidi(data);
+    };
+
+    midiBus.addEventListener('midi', handleMidi);
+    return () => {
+      midiBus.removeEventListener('midi', handleMidi);
+    };
+  }, [midiBus, isBypassed]);
 
   // Example: Send processed notes to the master audio engine
   const handleNoteGenerated = (noteData) => {
@@ -120,12 +128,11 @@ export default function YourNewPlugin({
     </div>
   );
 }
-
 ```
 
 ### 3. Register the Plugin
 
-Open `src/core/config.js` (or `appRegistry.js`) and add your new module to the array:
+Open `src/config/appRegistry.js` (or `src/core/config.js` depending on setup) and add your new module to the array:
 
 ```javascript
 import YourNewPlugin from '../plugins/your-new-plugin';
@@ -140,7 +147,65 @@ export const appRegistry = [
     description: "Brief description for the sidebar."
   }
 ];
-
 ```
 
+---
+
+## ⚡ Performance Guidelines: UI Throttling
+
+To prevent **Main Thread Blocking** and audio latency/choking (such as the "strummed" audio artifact during rapid polyphonic chords), you must follow these guidelines:
+
+1. **Keep Audio Path Synchronous:** The `onMidiOut` callback and Tone.js audio generation must execute synchronously and immediately upon receiving a MIDI event.
+2. **Decouple React Renders:** Never trigger a React state update (`useState` setter) synchronously inside your MIDI message listeners.
+3. **Use the `useRef` + `throttle` Pattern:** 
+   - Store incoming note arrays, visual states, and logs in a mutable React `useRef`.
+   - Update the `useRef` synchronously on every MIDI event.
+   - Use `lodash/throttle` (usually ~30fps/32ms) to flush the ref's content to the React state.
+
+Example throttled implementation:
+```javascript
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import throttle from 'lodash/throttle';
+
+export default function MyPlugin({ midiBus, onMidiOut, isBypassed }) {
+  const [activeNotes, setActiveNotes] = useState([]);
+  const activeNotesRef = useRef([]);
+
+  // Throttle state updates to ~30fps
+  const syncNotesUI = useMemo(() => throttle(() => {
+    setActiveNotes([...activeNotesRef.current]);
+  }, 32), []);
+
+  useEffect(() => {
+    return () => syncNotesUI.cancel(); // Cleanup on unmount
+  }, [syncNotesUI]);
+
+  useEffect(() => {
+    if (!midiBus || isBypassed) return;
+
+    const handleMidiEvent = (e) => {
+      const data = e.detail;
+      const [status, note, velocity] = data;
+      const isNoteOn = (status & 0xf0) === 0x90 && velocity > 0;
+
+      // 1. Audio remains synchronous
+      if (isNoteOn) {
+        onMidiOut(data);
+      }
+
+      // 2. UI rendering state is throttled
+      if (isNoteOn) {
+        activeNotesRef.current.push(note);
+      } else {
+        activeNotesRef.current = activeNotesRef.current.filter(n => n !== note);
+      }
+      syncNotesUI();
+    };
+
+    midiBus.addEventListener('midi', handleMidiEvent);
+    return () => midiBus.removeEventListener('midi', handleMidiEvent);
+  }, [midiBus, isBypassed, onMidiOut, syncNotesUI]);
+
+  // ...
+}
 ```

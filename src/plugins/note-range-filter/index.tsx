@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import throttle from 'lodash/throttle';
 import { Settings2, Info } from 'lucide-react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { updateKeyVisuals128, MidiNoteRangeFilter } from './components/MidiNoteRangeFilter';
@@ -26,6 +27,17 @@ export default function NoteRangeFilterPlugin({
   );
 
   const [activeNotes, setActiveNotes] = useState<Set<number>>(new Set());
+  const activeNotesRef = useRef<Set<number>>(new Set());
+
+  const syncActiveNotesUI = useMemo(() => throttle(() => {
+    setActiveNotes(new Set(activeNotesRef.current));
+  }, 32), []);
+
+  useEffect(() => {
+    return () => {
+      syncActiveNotesUI.cancel();
+    };
+  }, [syncActiveNotesUI]);
   const mappedNotesRef = useRef<Map<number, number | null>>(new Map());
 
   const [infoOpen, setInfoOpen] = useState(false);
@@ -71,11 +83,8 @@ export default function NoteRangeFilterPlugin({
       const processedNote = processNote(data1, range[0], range[1], activeMode);
       if (processedNote !== null) {
         updateKeyVisuals128(processedNote, '#3b82f6');
-        setActiveNotes((prev) => {
-          const next = new Set(prev);
-          next.add(processedNote);
-          return next;
-        });
+        activeNotesRef.current.add(processedNote);
+        syncActiveNotesUI();
         mappedNotesRef.current.set(data1, processedNote);
         if (sendMidiOutRef.current) {
           sendMidiOutRef.current([status, processedNote, data2]);
@@ -83,11 +92,8 @@ export default function NoteRangeFilterPlugin({
       } else {
         // Blocked, visualize as muted red
         updateKeyVisuals128(data1, 'rgba(239, 68, 68, 0.4)');
-        setActiveNotes((prev) => {
-          const next = new Set(prev);
-          next.add(data1);
-          return next;
-        });
+        activeNotesRef.current.add(data1);
+        syncActiveNotesUI();
         mappedNotesRef.current.set(data1, null);
       }
     } else if (type === 'noteoff') {
@@ -101,11 +107,8 @@ export default function NoteRangeFilterPlugin({
           }
           if (!isStillActive) {
             updateKeyVisuals128(mappedNote, '');
-            setActiveNotes((prev) => {
-              const next = new Set(prev);
-              next.delete(mappedNote);
-              return next;
-            });
+            activeNotesRef.current.delete(mappedNote);
+            syncActiveNotesUI();
           }
           if (sendMidiOutRef.current) {
             sendMidiOutRef.current([0x80 | channel, mappedNote, 0]);
@@ -118,11 +121,8 @@ export default function NoteRangeFilterPlugin({
           }
           if (!isStillActive) {
             updateKeyVisuals128(data1, '');
-            setActiveNotes((prev) => {
-              const next = new Set(prev);
-              next.delete(data1);
-              return next;
-            });
+            activeNotesRef.current.delete(data1);
+            syncActiveNotesUI();
           }
         }
       }
@@ -144,7 +144,8 @@ export default function NoteRangeFilterPlugin({
         }
       }
     });
-    activeNotes.forEach(note => updateKeyVisuals128(note, ''));
+    activeNotesRef.current.forEach(note => updateKeyVisuals128(note, ''));
+    activeNotesRef.current.clear();
     setActiveNotes(new Set());
     mappedNotesRef.current.clear();
 
@@ -195,6 +196,7 @@ export default function NoteRangeFilterPlugin({
       }
     });
     
+    activeNotesRef.current.clear();
     setActiveNotes(new Set());
     mappedNotesRef.current.clear();
   }, [activeMode, range]);
