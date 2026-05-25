@@ -313,14 +313,14 @@ const ProcessorSection = ({
 };
 
 export default function MidiDynamics({
-  midiIn,
+  midiBus,
   onMidiOut,
   isBypassed,
   showInfo,
   showSettings,
   triggerPanic
 }: {
-  midiIn: number[] | null;
+  midiBus: EventTarget | null;
   onMidiOut: (data: number[]) => void;
   isBypassed: boolean;
   showInfo: boolean;
@@ -528,10 +528,16 @@ export default function MidiDynamics({
 
   // Wire incoming MIDI
   useEffect(() => {
-    if (midiIn && midiIn.length > 0 && !isBypassed) {
-      handleMidiMessage(midiIn);
-    }
-  }, [midiIn, handleMidiMessage, isBypassed]);
+    if (!midiBus || isBypassed) return;
+
+    const handleMidiEvent = (e: Event) => {
+      const data = (e as CustomEvent<number[]>).detail;
+      handleMidiMessage(data);
+    };
+
+    midiBus.addEventListener('midi', handleMidiEvent);
+    return () => midiBus.removeEventListener('midi', handleMidiEvent);
+  }, [midiBus, handleMidiMessage, isBypassed]);
 
   // Wire panic trigger
   const initialPanicRef = useRef(true);

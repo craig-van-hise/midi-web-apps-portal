@@ -58,14 +58,14 @@ type ActiveNote = {
 };
 
 export default function MidiMonitor({
-  midiIn,
+  midiBus,
   onMidiOut,
   isBypassed,
   showInfo,
   showSettings,
   triggerPanic
 }: {
-  midiIn: number[] | null;
+  midiBus: EventTarget | null;
   onMidiOut: (data: number[]) => void;
   isBypassed: boolean;
   showInfo: boolean;
@@ -395,12 +395,18 @@ export default function MidiMonitor({
     }
   }, [appendToLedger, setKeyColor, onMidiOut, isBypassed]);
 
-  // Wire incoming MIDI prop
+  // Wire incoming MIDI
   useEffect(() => {
-    if (midiIn && midiIn.length > 0 && !isBypassed) {
-      onMidiMessage(midiIn, performance.now());
-    }
-  }, [midiIn, onMidiMessage, isBypassed]);
+    if (!midiBus || isBypassed) return;
+
+    const handleMidiEvent = (e: Event) => {
+      const data = (e as CustomEvent<number[]>).detail;
+      onMidiMessage(data, performance.now());
+    };
+
+    midiBus.addEventListener('midi', handleMidiEvent);
+    return () => midiBus.removeEventListener('midi', handleMidiEvent);
+  }, [midiBus, onMidiMessage, isBypassed]);
 
   const handlePanic = () => {
     // Reset keys

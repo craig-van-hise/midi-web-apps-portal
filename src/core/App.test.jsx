@@ -5,8 +5,13 @@ import mockDummyPlugin from '../plugins/DummyPlugin';
 import App from './App';
 import { appRegistry } from '../config/appRegistry';
 
+let capturedMidiBus = null;
+
 vi.mock('../plugins/note-range-filter', () => ({
-  default: mockDummyPlugin
+  default: function MockNoteRangeFilter(props) {
+    capturedMidiBus = props.midiBus;
+    return React.createElement(mockDummyPlugin, props);
+  }
 }));
 
 // Mock Web MIDI API
@@ -100,10 +105,10 @@ describe('App Portal Monolith Harness Tests', () => {
     expect(screen.getByText('[PANIC TRIGGERED] state=1')).toBeInTheDocument();
   });
 
-  it('verifies global MIDI input message forwarding to plugin props', async () => {
+  it('verifies global MIDI input message dispatches midi event to midiBus', async () => {
     render(<App />);
 
-    // Click third item to mount DummyPlugin
+    // Click third item to mount DummyPlugin / MockNoteRangeFilter
     const thirdSidebarItem = screen.getByRole('heading', { name: 'VV | MIDI Note Range Filter', level: 3 });
     fireEvent.click(thirdSidebarItem);
 
@@ -117,6 +122,15 @@ describe('App Portal Monolith Harness Tests', () => {
     expect(mockMidiInput.addEventListener).toHaveBeenCalledWith('midimessage', expect.any(Function));
     expect(midiMessageListener).toBeTypeOf('function');
 
+    // Wait for the midiBus to be captured
+    await waitFor(() => {
+      expect(capturedMidiBus).not.toBeNull();
+    });
+
+    // Register a spy listener on the captured bus
+    const midiSpy = vi.fn();
+    capturedMidiBus.addEventListener('midi', midiSpy);
+
     // Simulate receiving a Note On MIDI message [144, 60, 100]
     const midiEvent = {
       data: new Uint8Array([144, 60, 100]),
@@ -125,7 +139,11 @@ describe('App Portal Monolith Harness Tests', () => {
     // Invoke the captured listener callback
     midiMessageListener(midiEvent);
 
-    // Verify it was logged in the DummyPlugin via the props change
-    expect(await screen.findByText('[MIDI IN] [144,60,100]')).toBeInTheDocument();
+    // Verify the event was dispatched to the bus
+    expect(midiSpy).toHaveBeenCalledTimes(1);
+    expect(midiSpy.mock.calls[0][0].detail).toEqual([144, 60, 100]);
+
+    // Clean up
+    capturedMidiBus.removeEventListener('midi', midiSpy);
   });
 });

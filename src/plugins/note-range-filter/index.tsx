@@ -5,14 +5,14 @@ import { updateKeyVisuals128, MidiNoteRangeFilter } from './components/MidiNoteR
 import { FilterMode, processNote } from './lib/midiProcessing';
 
 export default function NoteRangeFilterPlugin({
-  midiIn,
+  midiBus,
   onMidiOut,
   isBypassed,
   showInfo,
   showSettings,
   triggerPanic
 }: {
-  midiIn: number[] | null;
+  midiBus: EventTarget | null;
   onMidiOut: (data: number[]) => void;
   isBypassed: boolean;
   showInfo: boolean;
@@ -159,10 +159,16 @@ export default function NoteRangeFilterPlugin({
 
   // Wire incoming MIDI
   useEffect(() => {
-    if (midiIn && midiIn.length > 0 && !isBypassed) {
-      handleMidiIn(midiIn);
-    }
-  }, [midiIn, isBypassed]);
+    if (!midiBus || isBypassed) return;
+
+    const handleMidiEvent = (e: Event) => {
+      const data = (e as CustomEvent<number[]>).detail;
+      handleMidiIn(data);
+    };
+
+    midiBus.addEventListener('midi', handleMidiEvent);
+    return () => midiBus.removeEventListener('midi', handleMidiEvent);
+  }, [midiBus, isBypassed]);
 
   // Wire panic trigger
   const initialPanicRef = useRef(true);

@@ -28,14 +28,14 @@ const FACTORY_PRESETS: Preset[] = [
 ];
 
 export default function PitchClassMatrix({
-  midiIn,
+  midiBus,
   onMidiOut,
   isBypassed,
   showInfo,
   showSettings,
   triggerPanic
 }: {
-  midiIn: number[] | null;
+  midiBus: EventTarget | null;
   onMidiOut: (data: number[]) => void;
   isBypassed: boolean;
   showInfo: boolean;
@@ -217,10 +217,16 @@ export default function PitchClassMatrix({
 
   // Wire incoming MIDI messages to local MIDI handler
   useEffect(() => {
-    if (midiIn && midiIn.length > 0 && !isBypassed) {
-      handleMidiIn(midiIn);
-    }
-  }, [midiIn, isBypassed]);
+    if (!midiBus || isBypassed) return;
+
+    const handleMidiEvent = (e: Event) => {
+      const data = (e as CustomEvent<number[]>).detail;
+      handleMidiIn(data);
+    };
+
+    midiBus.addEventListener('midi', handleMidiEvent);
+    return () => midiBus.removeEventListener('midi', handleMidiEvent);
+  }, [midiBus, isBypassed]);
 
   // Wire panic triggers
   const initialPanicRef = useRef(true);

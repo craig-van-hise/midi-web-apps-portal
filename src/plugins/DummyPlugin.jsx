@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 export default function DummyPlugin({
-  midiIn,
+  midiBus,
   onMidiOut,
   isBypassed,
   showInfo,
@@ -10,11 +10,24 @@ export default function DummyPlugin({
 }) {
   const [logs, setLogs] = useState([]);
 
-  useEffect(() => {
-    if (midiIn) {
-      setLogs((prev) => [`[MIDI IN] ${JSON.stringify(midiIn)}`, ...prev.slice(0, 19)]);
+  const processMidi = (data) => {
+    setLogs((prev) => [`[MIDI IN] ${JSON.stringify(data)}`, ...prev.slice(0, 19)]);
+    if (onMidiOut) {
+      onMidiOut(data);
     }
-  }, [midiIn]);
+  };
+
+  useEffect(() => {
+    if (!midiBus || isBypassed) return;
+
+    const handleMidiEvent = (e) => {
+      const data = e.detail;
+      processMidi(data);
+    };
+
+    midiBus.addEventListener('midi', handleMidiEvent);
+    return () => midiBus.removeEventListener('midi', handleMidiEvent);
+  }, [midiBus, isBypassed, onMidiOut]);
 
   useEffect(() => {
     if (triggerPanic !== undefined) {

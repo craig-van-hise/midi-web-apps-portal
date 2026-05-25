@@ -52,7 +52,7 @@ const MidiKeyboardUpdater = () => {
 };
 
 const ChordNotatorContent = ({
-  midiIn,
+  midiBus,
   isBypassed,
   showInfo,
   showSettings,
@@ -71,12 +71,18 @@ const ChordNotatorContent = ({
     setSettingsOpen(showSettings);
   }, [showSettings]);
 
-  // Listen to incoming MIDI prop
+  // Listen to incoming MIDI bus
   useEffect(() => {
-    if (midiIn && midiIn.length > 0) {
-      dispatchVirtualMidi(new Uint8Array(midiIn));
-    }
-  }, [midiIn, dispatchVirtualMidi]);
+    if (!midiBus || isBypassed) return;
+
+    const handleMidiEvent = (e) => {
+      const data = e.detail;
+      dispatchVirtualMidi(new Uint8Array(data));
+    };
+
+    midiBus.addEventListener('midi', handleMidiEvent);
+    return () => midiBus.removeEventListener('midi', handleMidiEvent);
+  }, [midiBus, isBypassed, dispatchVirtualMidi]);
 
   // Listen to panic trigger prop
   const initialPanicRef = useRef(true);
@@ -110,7 +116,7 @@ const ChordNotatorContent = ({
 };
 
 export default function ChordNotator({
-  midiIn,
+  midiBus,
   onMidiOut,
   isBypassed,
   showInfo,
@@ -129,7 +135,7 @@ export default function ChordNotator({
     <MIDIProvider>
       <MidiKeyboardUpdater />
       <ChordNotatorContent 
-        midiIn={midiIn}
+        midiBus={midiBus}
         isBypassed={isBypassed}
         showInfo={showInfo}
         showSettings={showSettings}

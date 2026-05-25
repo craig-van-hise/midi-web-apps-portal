@@ -47,7 +47,7 @@ function App() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [panicTriggerState, setPanicTriggerState] = useState(0);
-  const [globalMidiData, setGlobalMidiData] = useState(null);
+  const midiBusRef = useRef(new EventTarget());
 
   // Rompler states (for Phase 5)
   const [activeNotes, setActiveNotes] = useState([]);
@@ -116,7 +116,8 @@ function App() {
     const handleMidiMessage = (message) => {
       const data = Array.from(message.data);
       if (isPowerActive) {
-        setGlobalMidiData(data);
+        const customEvent = new CustomEvent('midi', { detail: data });
+        midiBusRef.current.dispatchEvent(customEvent);
       }
     };
 
@@ -128,7 +129,6 @@ function App() {
 
   // Reset states on active app transition
   useEffect(() => {
-    setGlobalMidiData(null);
     setActiveNotes([]);
     setIsInfoModalOpen(false);
     setIsSettingsModalOpen(false);
@@ -315,7 +315,7 @@ function App() {
           {/* Zone C: Plugin Main Pane */}
           <div className="flex-1 relative overflow-y-auto bg-transparent">
             <ActivePlugin
-              midiIn={globalMidiData}
+              midiBus={midiBusRef.current}
               onMidiOut={handleRomplerOutput}
               isBypassed={!isPowerActive}
               showInfo={isInfoModalOpen}
