@@ -32,7 +32,6 @@ const generateId = () => {
 const NotationCanvas: React.FC = () => {
   const [tick, setTick] = useState(0);
   const forceUpdate = () => setTick(t => t + 1);
-  const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [staffSpace, setStaffSpace] = useState<number>(12); // Default value
   const activeNotes = useRef<ActiveNoteData[]>([]);
@@ -1029,10 +1028,8 @@ const NotationCanvas: React.FC = () => {
   }, [renderedNotes, tick]); // tick ensures sync on forceUpdate calls
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    // Guard against UI clicks and locked audio state
     const target = e.target as HTMLElement;
-    const isTest = typeof globalThis !== 'undefined' && (globalThis as any).process?.env?.NODE_ENV === 'test';
-    if ((!isAudioUnlocked && !isTest) || target.closest('button') || target.closest('.audio-unlock-overlay')) {
+    if (target.closest('button')) {
         return;
     }
 
@@ -1426,21 +1423,6 @@ const NotationCanvas: React.FC = () => {
       className="notation-canvas-container relative w-full h-[320px] bg-white dark:bg-[#0a0a0a] overflow-visible flex items-start justify-center select-none leading-none"
       style={{ lineHeight: '1' }}
     >
-      {!isAudioUnlocked && (
-        <div className="audio-unlock-overlay absolute inset-0 z-[100] bg-white/80 dark:bg-black/80 flex items-center justify-center backdrop-blur-sm" data-testid="audio-unlock-overlay">
-          <button
-            className="px-6 py-3 bg-[#aa3bff] hover:bg-[#9933ff] text-white font-bold rounded-lg shadow-lg transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={async (e) => {
-              e.stopPropagation();
-              await Tone.start();
-              setIsAudioUnlocked(true);
-            }}
-          >
-            Click to Start Audio Engine
-          </button>
-        </div>
-      )}
       {/* Compact Grand Staff System */}
       <div className="grand-staff-system relative w-[300px] h-full flex flex-col justify-center items-center">
         {/* Key Signature Selector - Absolute Positioned */}

@@ -756,3 +756,17 @@ describe('NotationCanvas - Hardware Reconciliation (Phase 2 fix)', () => {
     });
   });
 });
+
+describe('NotationCanvas - Legacy Audio Modal', () => {
+  test('should assert that the text "Click to Start Audio Engine" does not exist in the DOM', () => {
+    (useMidi as any).mockReturnValue({
+      keySignature: 'C Major',
+      splitPoint: 60,
+      lut: [null],
+      updateActiveNotes: vi.fn(),
+    });
+
+    render(<NotationCanvas />);
+    expect(screen.queryByText('Click to Start Audio Engine')).toBeNull();
+  });
+});

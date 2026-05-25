@@ -58,7 +58,7 @@ const ChordNotatorContent = ({
   showSettings,
   triggerPanic
 }) => {
-  const { dispatchVirtualMidi, handleMidiPanic } = useMidi();
+  const { dispatchVirtualMidi, dispatchPhysicalMidi, handleMidiPanic } = useMidi();
   const [infoOpen, setInfoOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -77,12 +77,12 @@ const ChordNotatorContent = ({
 
     const handleMidiEvent = (e) => {
       const data = e.detail;
-      dispatchVirtualMidi(new Uint8Array(data));
+      dispatchPhysicalMidi(new Uint8Array(data));
     };
 
     midiBus.addEventListener('midi', handleMidiEvent);
     return () => midiBus.removeEventListener('midi', handleMidiEvent);
-  }, [midiBus, isBypassed, dispatchVirtualMidi]);
+  }, [midiBus, isBypassed, dispatchPhysicalMidi]);
 
   // Listen to panic trigger prop
   const initialPanicRef = useRef(true);

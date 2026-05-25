@@ -84,4 +84,34 @@ describe('KeySignatureSelector Component', () => {
 
     expect(mockSetKeySignature).toHaveBeenCalledWith('C Harmonic Minor');
   });
+
+  test('should render the micro-labels "ROOT NOTE" and "SCALE TYPE"', () => {
+    const { getByText } = render(<KeySignatureSelector />);
+    expect(getByText(/root note/i)).toBeInTheDocument();
+    expect(getByText(/scale type/i)).toBeInTheDocument();
+  });
+
+  test('should render outer container with rounded-full and shadow-lg classes', () => {
+    const { container } = render(<KeySignatureSelector />);
+    const outerDiv = container.firstChild as HTMLElement;
+    expect(outerDiv).toHaveClass('rounded-full');
+    expect(outerDiv).toHaveClass('shadow-lg');
+  });
+
+  test('should apply appearance-none class to select elements', () => {
+    render(<KeySignatureSelector />);
+    const rootSelect = document.getElementById('key-root-select');
+    const scaleSelect = document.getElementById('key-scale-select');
+    expect(rootSelect).toHaveClass('appearance-none');
+    expect(scaleSelect).toHaveClass('appearance-none');
+  });
+
+  test('should apply whitespace-nowrap class to both micro-label span elements', () => {
+    const { getByText } = render(<KeySignatureSelector />);
+    const rootLabel = getByText(/root note/i);
+    const scaleLabel = getByText(/scale type/i);
+    expect(rootLabel).toHaveClass('whitespace-nowrap');
+    expect(scaleLabel).toHaveClass('whitespace-nowrap');
+  });
 });
+

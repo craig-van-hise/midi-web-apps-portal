@@ -109,4 +109,17 @@ describe('MIDIProvider - Headless', () => {
 
     expect(capturedContext.splitPoint).toBe(48);
   });
+
+  it('should expose dispatchPhysicalMidi as a callable function', async () => {
+    let capturedContext: any;
+    render(
+      <MIDIProvider>
+        <TestConsumer onMidiReady={(ctx) => { capturedContext = ctx; }} />
+      </MIDIProvider>
+    );
+
+    await waitFor(() => expect(capturedContext).toBeDefined());
+    expect(typeof capturedContext.dispatchPhysicalMidi).toBe('function');
+  });
 });
+

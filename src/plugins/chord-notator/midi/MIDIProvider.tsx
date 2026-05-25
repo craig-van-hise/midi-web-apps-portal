@@ -26,6 +26,7 @@ interface MidiContextType {
   isHoldModeActive: boolean;
   setIsHoldModeActive: (b: boolean) => void;
   dispatchVirtualMidi: (data: Uint8Array) => void;
+  dispatchPhysicalMidi: (data: Uint8Array) => void;
   updateActiveNotes: (notes: any[]) => void;
   lut: (PCS_Entry | null)[];
   selectedNotes: number[];
@@ -368,6 +369,10 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     handleIncomingMidi(data, true);
   }, [handleIncomingMidi]);
 
+  const dispatchPhysicalMidi = useCallback((data: Uint8Array) => {
+    handleIncomingMidi(data, false);
+  }, [handleIncomingMidi]);
+
   const handleMidiPanic = useCallback(() => {
     // Reset sustain state
     setIsSustainActive(false);
@@ -521,6 +526,7 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isHoldModeActive,
         setIsHoldModeActive,
         dispatchVirtualMidi,
+        dispatchPhysicalMidi,
         updateActiveNotes,
         lut,
         selectedNotes,
