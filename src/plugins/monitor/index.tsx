@@ -744,7 +744,7 @@ export default function MidiMonitor({
       input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--color-accent-blue, #00d1ff); border-radius: 50%; cursor: pointer; transition: background 0.15s; }
       input[type=range]::-webkit-slider-thumb:hover { background: #55e6ff; }
     `}</style>
-    <div className="h-screen w-screen bg-[#0a0a0b] text-[#e1e1e6] flex flex-col font-sans overflow-hidden">
+    <div className="h-full w-full bg-[#0a0a0b] text-[#e1e1e6] flex flex-col font-sans overflow-hidden">
       {/* CONTROL PANEL */}
       <header className="flex-none flex flex-col lg:flex-row gap-6 p-[8px_12px] md:p-[12px_20px] bg-[#151619] border-b border-[#2e2f36] z-20 h-auto">
           <div className="flex flex-col gap-2 w-full lg:w-[280px] shrink-0 justify-center">
@@ -822,9 +822,9 @@ export default function MidiMonitor({
       </header>
 
       {/* MAIN BODY */}
-      <main className="flex-1 flex flex-row gap-[1px] min-h-0 bg-[#2e2f36] relative z-10 overflow-x-auto overflow-y-hidden">
+      <main className="flex-1 flex flex-row gap-[1px] min-h-0 bg-[#2e2f36] relative z-10 overflow-hidden">
         {/* Left: Ledger Console */}
-        <div className="flex-none flex flex-col bg-[#0a0a0b] border-r border-[#2e2f36] shrink-0 relative" style={{ flexBasis: 'max-content' }}>
+        <div className="flex-none flex flex-col bg-[#0a0a0b] border-r border-[#2e2f36] shrink-0 relative w-[320px] lg:w-[450px]">
           <div 
             ref={ledgerScrollContainerRef} 
             onScroll={handleScroll}
@@ -850,7 +850,7 @@ export default function MidiMonitor({
         </div>
 
         {/* Right: Graph Monitor */}
-        <div className="flex-1 flex flex-col min-w-0 min-h-[30vh] bg-[#0a0a0b] p-[12px] md:p-[20px] relative">
+        <div className="flex-1 flex flex-col min-w-0 bg-[#0a0a0b] p-[12px] md:p-[20px] relative">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-[12px]">
               <div className="flex items-center gap-4">
                 <div className="text-[10px] uppercase tracking-[0.05em] text-[#8e9299] font-bold">Continuous Data Stream</div>
