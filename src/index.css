@@ -1,0 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Jost:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+@import "tailwindcss";
+
+/* Bravura Font Declaration */
+@font-face {
+  font-family: 'Bravura';
+  src: url('/fonts/Bravura.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+:root {
+  --staff-space: 12px;
+  --staff-line-thickness: 1px;
+
+  --text: #6b6375;
+  --text-h: #08060d;
+  --bg: #fff;
+  --border: #e5e4e7;
+  --code-bg: #f4f3ec;
+  --accent: #aa3bff;
+  --accent-bg: rgba(170, 59, 255, 0.1);
+  --accent-border: rgba(170, 59, 255, 0.5);
+  --social-bg: rgba(244, 243, 236, 0.5);
+  --shadow:
+    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+}
+
+/* Selection Styles */
+.notation-note-container {
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.notation-note-container[data-selected="true"] .notehead {
+  color: #aa3bff !important;
+  filter: drop-shadow(0 0 10px rgba(170, 59, 255, 0.4));
+}
+
+.notation-note-container[data-selected="true"] [data-is-accidental="true"] {
+  color: #aa3bff !important;
+}
+
+/* Marquee Style (Phase 2 Preparation) */
+.selection-marquee {
+  position: fixed;
+  border: 1px solid #aa3bff;
+  background: rgba(170, 59, 255, 0.1);
+  pointer-events: none;
+  z-index: 1000;
+}

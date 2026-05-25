@@ -1,0 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+/* Master Rompler Isolation Wrapper to protect hardware-esque aesthetic */
+.master-rompler-wrapper {
+  color-scheme: dark;
+}
+
+/* Digital LED Font override for the displays */
+.master-rompler-wrapper .digital-led {
+  font-family: 'VT323', monospace !important;
+}
+
+/* Ensure the select element group remains readable and matches styling */
+.master-rompler-wrapper select {
+  color-scheme: dark;
+}

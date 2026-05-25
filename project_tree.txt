@@ -1,0 +1,135 @@
+
+/Users/vv2024/Documents/Repos - vv2024/MIDI/WebApps/midi-web-apps-portal
+├── # Prompts
+|  ├── # 0.md
+|  ├── # 1.md
+|  ├── # 10.md
+|  ├── # 11.md
+|  ├── # 12.md
+|  ├── # 13.md
+|  ├── # 14.md
+|  ├── # 15.md
+|  ├── # 2.md
+|  ├── # 3.md
+|  ├── # 4.md
+|  ├── # 5.md
+|  ├── # 6.md
+|  ├── # 7.md
+|  ├── # 8.md
+|  └── # 9.md
+├── PROJECT_STATE.md
+├── README.md
+├── README_original.md
+├── eslint.config.js
+├── index.html
+├── llms.txt
+├── package-lock.json
+├── package.json
+├── project_tree.txt
+├── public
+|  ├── PCS_LUT.dat
+|  ├── favicon.svg
+|  ├── fonts
+|  |  └── Bravura.woff2
+|  └── icons.svg
+├── src
+|  ├── assets
+|  |  ├── hero.png
+|  |  ├── react.svg
+|  |  └── vite.svg
+|  ├── config
+|  |  ├── appRegistry.js
+|  |  └── appRegistry.test.js
+|  ├── core
+|  |  ├── App.css
+|  |  ├── App.jsx
+|  |  ├── App.test.jsx
+|  |  └── rompler
+|  |     ├── Knob.jsx
+|  |     ├── MasterRompler.jsx
+|  |     ├── VUMeter.jsx
+|  |     ├── engine.js
+|  |     ├── rompler.css
+|  |     ├── usePersistentState.js
+|  |     └── utils.js
+|  ├── hooks
+|  ├── index.css
+|  ├── main.jsx
+|  ├── plugins
+|  |  ├── DummyPlugin.jsx
+|  |  ├── chord-notator
+|  |  |  ├── audio
+|  |  |  |  └── engine.ts
+|  |  |  ├── components
+|  |  |  |  ├── ErrorBoundary.tsx
+|  |  |  |  ├── InfoModal.tsx
+|  |  |  |  ├── KeySignatureSelector.test.tsx
+|  |  |  |  ├── KeySignatureSelector.tsx
+|  |  |  |  ├── Keyboard.colorMatrix.test.tsx
+|  |  |  |  ├── Keyboard.test.tsx
+|  |  |  |  ├── Keyboard.tsx
+|  |  |  |  ├── Knob.tsx
+|  |  |  |  ├── NavController.tsx
+|  |  |  |  ├── NotationCanvas.bugs.test.tsx
+|  |  |  |  ├── NotationCanvas.colorMatrix.test.tsx
+|  |  |  |  ├── NotationCanvas.events.test.tsx
+|  |  |  |  ├── NotationCanvas.headless.test.tsx
+|  |  |  |  ├── NotationCanvas.history.test.tsx
+|  |  |  |  ├── NotationCanvas.listenMode.test.tsx
+|  |  |  |  ├── NotationCanvas.selection.test.tsx
+|  |  |  |  ├── NotationCanvas.shortcutAudio.test.tsx
+|  |  |  |  ├── NotationCanvas.test.tsx
+|  |  |  |  ├── NotationCanvas.tsx
+|  |  |  |  ├── RomplerFooter.tsx
+|  |  |  |  ├── SettingsModal.test.tsx
+|  |  |  |  ├── SettingsModal.tsx
+|  |  |  |  ├── VUMeter.tsx
+|  |  |  |  ├── navTypes.ts
+|  |  |  |  └── toolbar
+|  |  |  ├── hooks
+|  |  |  ├── index.jsx
+|  |  |  ├── lib
+|  |  |  |  ├── usePersistentState.ts
+|  |  |  |  └── utils.ts
+|  |  |  ├── midi
+|  |  |  |  ├── MIDIProvider.playable.test.tsx
+|  |  |  |  ├── MIDIProvider.test.tsx
+|  |  |  |  ├── MIDIProvider.tsx
+|  |  |  |  └── MidiPortSelector.tsx
+|  |  |  └── utils
+|  |  |     ├── binaryLut.ts
+|  |  |     ├── chordSpeller.test.ts
+|  |  |     ├── chordSpeller.ts
+|  |  |     ├── notationMath.test.ts
+|  |  |     ├── notationMath.ts
+|  |  |     ├── notationMath.xLevel.test.ts
+|  |  |     ├── symmetricalSpeller.test.ts
+|  |  |     └── symmetricalSpeller.ts
+|  |  ├── dynamics
+|  |  |  └── index.tsx
+|  |  ├── monitor
+|  |  |  └── index.tsx
+|  |  ├── note-range-filter
+|  |  |  ├── components
+|  |  |  |  └── MidiNoteRangeFilter.tsx
+|  |  |  ├── index.tsx
+|  |  |  └── lib
+|  |  |     └── midiProcessing.ts
+|  |  └── pitch-class-matrix
+|  |     ├── components
+|  |     |  └── 88-key.tsx
+|  |     ├── index.tsx
+|  |     └── styles
+|  |        └── matrix.css
+|  ├── setupTests.js
+|  └── utils
+|     ├── ChameleonDummy.jsx
+|     └── ChameleonDummy.test.jsx
+└── vite.config.js
+
+directory: 979 file: 7131
+
+ignored: directory (143)
+
+
+[2K[1G
