@@ -91,32 +91,39 @@ function App() {
 
   // Set up Web MIDI API access
   useEffect(() => {
+    let isMounted = true;
     if (typeof navigator !== 'undefined' && navigator.requestMIDIAccess) {
       navigator.requestMIDIAccess()
         .then((access) => {
+          if (!isMounted) return;
           setMidiAccess(access);
           const inputs = Array.from(access.inputs.values());
           setMidiInputs(inputs);
-          if (inputs.length > 0) {
-            setSelectedInputId(inputs[0].id);
-          }
+          setSelectedInputId((prev) => prev || (inputs.length > 0 ? inputs[0].id : ''));
+          
           access.onstatechange = () => {
+            if (!isMounted) return;
             const updatedInputs = Array.from(access.inputs.values());
             setMidiInputs(updatedInputs);
-            if (updatedInputs.length > 0) {
-              if (!updatedInputs.some(i => i.id === selectedInputId)) {
-                setSelectedInputId(updatedInputs[0].id);
+            
+            setSelectedInputId((prevId) => {
+              if (updatedInputs.length > 0) {
+                // Keep the current selection if it still exists in the updated list
+                const stillExists = updatedInputs.some(i => i.id === prevId);
+                return stillExists ? prevId : updatedInputs[0].id;
               }
-            } else {
-              setSelectedInputId('');
-            }
+              return '';
+            });
           };
         })
         .catch((err) => {
           console.warn('MIDI Access failed or denied:', err);
         });
     }
-  }, [selectedInputId]);
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Route physical MIDI messages to active plugin state
   useEffect(() => {

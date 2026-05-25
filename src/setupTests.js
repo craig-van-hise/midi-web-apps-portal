@@ -39,6 +39,22 @@ Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 // Mock audioEngine.init to prevent Tone.js Web Audio API errors in JSDOM
 vi.spyOn(audioEngine, 'init').mockResolvedValue(undefined);
 
+// Mock rompler audioEngine to prevent Tone.js errors
+import { audioEngine as romplerAudioEngine } from './core/rompler/engine';
+vi.spyOn(romplerAudioEngine, 'init').mockResolvedValue(undefined);
+vi.spyOn(romplerAudioEngine, 'loadInstrument').mockResolvedValue(undefined);
+vi.spyOn(romplerAudioEngine, 'setVolume').mockImplementation(() => {});
+vi.spyOn(romplerAudioEngine, 'setPan').mockImplementation(() => {});
+vi.spyOn(romplerAudioEngine, 'setReverbWet').mockImplementation(() => {});
+vi.spyOn(romplerAudioEngine, 'setTuningOffset').mockImplementation(() => {});
+vi.spyOn(romplerAudioEngine, 'setAttack').mockImplementation(() => {});
+vi.spyOn(romplerAudioEngine, 'setDecay').mockImplementation(() => {});
+vi.spyOn(romplerAudioEngine, 'setSustain').mockImplementation(() => {});
+vi.spyOn(romplerAudioEngine, 'setRelease').mockImplementation(() => {});
+vi.spyOn(romplerAudioEngine, 'noteOn').mockImplementation(() => {});
+vi.spyOn(romplerAudioEngine, 'releaseNote').mockImplementation(() => {});
+vi.spyOn(romplerAudioEngine, 'releaseAll').mockImplementation(() => {});
+
 if (typeof window !== 'undefined' && typeof window.HTMLElement !== 'undefined') {
   window.HTMLElement.prototype.releasePointerCapture = vi.fn();
   window.HTMLElement.prototype.setPointerCapture = vi.fn();

@@ -236,4 +236,108 @@ describe('App Portal Monolith Harness Tests', () => {
     vi.useRealTimers();
     delete window.playNoteOn;
   });
+
+  it('given multiple mocked MIDI inputs, when selecting device index 1, then the select value updates and does not revert to index 0 (Phase 1 Test Case 1)', async () => {
+    const mockMidiInput1 = {
+      id: 'device-0',
+      name: 'Mock Device 0',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
+    const mockMidiInput2 = {
+      id: 'device-1',
+      name: 'Mock Device 1',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
+    const localMidiAccess = {
+      inputs: new Map([
+        ['device-0', mockMidiInput1],
+        ['device-1', mockMidiInput2]
+      ]),
+      outputs: new Map(),
+      onstatechange: null,
+    };
+
+    const requestMIDIAccessMock = vi.fn().mockResolvedValue(localMidiAccess);
+    Object.defineProperty(global.navigator, 'requestMIDIAccess', {
+      value: requestMIDIAccessMock,
+      configurable: true,
+      writable: true
+    });
+
+    render(<App />);
+
+    // Wait for the select element to populate and select 'device-0'
+    const select = await screen.findByLabelText(/midi input source/i);
+    await waitFor(() => {
+      expect(select.value).toBe('device-0');
+    });
+
+    // Simulate user selecting 'device-1'
+    act(() => {
+      fireEvent.change(select, { target: { value: 'device-1' } });
+    });
+
+    // In the broken implementation, it will trigger the useEffect, re-query, and reset to device-0.
+    // Let's wait a bit to ensure it doesn't revert.
+    await waitFor(() => {
+      expect(select.value).toBe('device-1');
+    });
+  });
+
+  it('given an active selection, when onstatechange fires but the active device is still connected, then the active selection remains unchanged (Phase 1 Test Case 2)', async () => {
+    const mockMidiInput1 = {
+      id: 'device-0',
+      name: 'Mock Device 0',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
+    const mockMidiInput2 = {
+      id: 'device-1',
+      name: 'Mock Device 1',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
+    const localMidiAccess = {
+      inputs: new Map([
+        ['device-0', mockMidiInput1],
+        ['device-1', mockMidiInput2]
+      ]),
+      outputs: new Map(),
+      onstatechange: null,
+    };
+
+    const requestMIDIAccessMock = vi.fn().mockResolvedValue(localMidiAccess);
+    Object.defineProperty(global.navigator, 'requestMIDIAccess', {
+      value: requestMIDIAccessMock,
+      configurable: true,
+      writable: true
+    });
+
+    render(<App />);
+
+    const select = await screen.findByLabelText(/midi input source/i);
+    await waitFor(() => {
+      expect(select.value).toBe('device-0');
+    });
+
+    // Select 'device-1'
+    act(() => {
+      fireEvent.change(select, { target: { value: 'device-1' } });
+    });
+
+    await waitFor(() => {
+      expect(select.value).toBe('device-1');
+    });
+
+    // Now fire onstatechange with both devices still present
+    act(() => {
+      if (localMidiAccess.onstatechange) {
+        localMidiAccess.onstatechange();
+      }
+    });
+
+    expect(select.value).toBe('device-1');
+  });
 });
