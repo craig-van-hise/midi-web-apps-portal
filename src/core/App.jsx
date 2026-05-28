@@ -7,7 +7,6 @@ import ChordNotator from '../plugins/chord-notator';
 import PitchClassMatrix from '../plugins/pitch-class-matrix';
 import MidiMonitor from '../plugins/monitor';
 import MidiDynamics from '../plugins/dynamics';
-import NoteRangeFilter from '../plugins/note-range-filter';
 import MidiTransposer from '../plugins/midi-transposer';
 import { MasterRompler } from './rompler/MasterRompler';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,14 +30,12 @@ function getPluginComponent(appId) {
   if (appId === 'dynamics') {
     return MidiDynamics;
   }
-  if (appId === 'note-range-filter') {
-    return NoteRangeFilter;
-  }
   if (appId === 'midi-transposer') {
     return MidiTransposer;
   }
   return DummyPlugin;
 }
+
 
 function App() {
   const [activeApp, setActiveApp] = useState(appRegistry[0]);

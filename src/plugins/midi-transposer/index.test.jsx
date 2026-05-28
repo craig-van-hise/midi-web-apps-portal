@@ -3,6 +3,8 @@ import { render, screen, act, waitFor } from '@testing-library/react';
 import React from 'react';
 import MidiTransposerPlugin from './index';
 import { useMidiStore } from './store/useMidiStore';
+import KeySplitKeyboard from './components/KeySplitKeyboard';
+
 
 describe('MidiTransposerPlugin Headless Tests', () => {
   beforeEach(() => {
@@ -11,10 +13,10 @@ describe('MidiTransposerPlugin Headless Tests', () => {
       bypass: false,
       activeChannels: Array.from({ length: 16 }, (_, i) => i + 1),
       zones: [
-        { id: 'z-trans', type: 'transpose', startNote: 21, endNote: 59, color: '#f43f5e', octave: 0 },
+        { id: 'z-trans', type: 'transpose', startNote: 21, endNote: 59, color: '#f97316', octave: 1 },
         { id: 'z-play', type: 'play', startNote: 60, endNote: 108, color: '#3b82f6', octave: 0 },
       ],
-      transposeOctave: 0,
+      transposeOctave: 1,
       playOctave: 0,
       transposeOrigin: 60,
       transposeTarget: 60,
@@ -153,4 +155,111 @@ describe('MidiTransposerPlugin Headless Tests', () => {
 
     vi.useRealTimers();
   });
+
+  it('has correct defaults (Phase 2 Test Case 1)', () => {
+    const state = useMidiStore.getState();
+    expect(state.transposeOctave).toBe(1);
+    expect(state.zones[0].color).toBe('#f97316');
+    expect(state.zones[0].octave).toBe(1);
+  });
+
+  it('allows polyphony in play zone when transposeTargets has 1 target (Phase 2 Test Case 2)', () => {
+    const mockMidiBus = new EventTarget();
+    const mockOnMidiOut = vi.fn();
+
+    useMidiStore.setState({
+      polyphonyMode: 'poly',
+      transposeTargets: [60], // 1 target
+    });
+
+    render(
+      <MidiTransposerPlugin
+        midiBus={mockMidiBus}
+        onMidiOut={mockOnMidiOut}
+        isBypassed={false}
+        showInfo={false}
+        showSettings={false}
+        triggerPanic={0}
+      />
+    );
+
+    // Send 3 play zone Note-On events
+    act(() => {
+      mockMidiBus.dispatchEvent(new CustomEvent('midi', { detail: [144, 60, 100] }));
+      mockMidiBus.dispatchEvent(new CustomEvent('midi', { detail: [144, 62, 100] }));
+      mockMidiBus.dispatchEvent(new CustomEvent('midi', { detail: [144, 64, 100] }));
+    });
+
+    // All 3 notes should be routed to output without sending Note-Offs for previous notes
+    const midiOnCalls = mockOnMidiOut.mock.calls.filter(call => (call[0][0] & 0xf0) === 0x90);
+    const midiOffCalls = mockOnMidiOut.mock.calls.filter(call => (call[0][0] & 0xf0) === 0x80);
+
+    expect(midiOnCalls).toHaveLength(3);
+    expect(midiOffCalls).toHaveLength(0);
+  });
+
+  it('restricts play zone to monophony when transposeTargets has more than 1 target (Phase 2 Test Case 3)', () => {
+    const mockMidiBus = new EventTarget();
+    const mockOnMidiOut = vi.fn();
+
+    useMidiStore.setState({
+      polyphonyMode: 'poly',
+      transposeTargets: [60, 64], // 2 targets
+    });
+
+    render(
+      <MidiTransposerPlugin
+        midiBus={mockMidiBus}
+        onMidiOut={mockOnMidiOut}
+        isBypassed={false}
+        showInfo={false}
+        showSettings={false}
+        triggerPanic={0}
+      />
+    );
+
+    // Send 3 play zone Note-On events in sequence
+    act(() => {
+      mockMidiBus.dispatchEvent(new CustomEvent('midi', { detail: [144, 60, 100] }));
+    });
+    // First note should trigger 2 output notes (one for each transpose target)
+    // Transpose origin is 60. Target 60 -> diff 0 -> output 60. Target 64 -> diff 4 -> output 64.
+    expect(mockOnMidiOut).toHaveBeenLastCalledWith([144, 64, 100]);
+    mockOnMidiOut.mockClear();
+
+    act(() => {
+      mockMidiBus.dispatchEvent(new CustomEvent('midi', { detail: [144, 62, 100] }));
+    });
+    // Second note should trigger Note-Off for the previous note (60 and 64), and Note-On for 62 (targets: 62 and 66)
+    const midiOffCalls = mockOnMidiOut.mock.calls.filter(call => (call[0][0] & 0xf0) === 0x80);
+    const midiOnCalls = mockOnMidiOut.mock.calls.filter(call => (call[0][0] & 0xf0) === 0x90);
+
+    expect(midiOffCalls).toHaveLength(2);
+    expect(midiOffCalls.map(c => c[0][1])).toContain(60);
+    expect(midiOffCalls.map(c => c[0][1])).toContain(64);
+
+    expect(midiOnCalls).toHaveLength(2);
+    expect(midiOnCalls.map(c => c[0][1])).toContain(62);
+    expect(midiOnCalls.map(c => c[0][1])).toContain(66);
+  });
+
+  it('given KeySplitKeyboard, when playNote(60) is called, asserts simulateMidi is called with [144, 60, 100] (Phase 3 Test Case 1)', () => {
+    const mockSimulateMidi = vi.fn();
+    render(
+      <KeySplitKeyboard
+        onZonesChange={vi.fn()}
+        simulateMidi={mockSimulateMidi}
+      />
+    );
+
+    const keyEl = document.getElementById('pksplit-60');
+    expect(keyEl).toBeInTheDocument();
+    
+    act(() => {
+      keyEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    });
+
+    expect(mockSimulateMidi).toHaveBeenCalledWith([144, 60, 100]);
+  });
 });
+

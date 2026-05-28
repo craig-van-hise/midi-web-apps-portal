@@ -6,9 +6,9 @@ import { Tooltip } from './ui/Tooltip';
 import { whiteKeys, blackKeys, NoteRects } from './keyboardMap';
 
 export const WHITE_KEY_WIDTH = 19;
-export const WHITE_KEY_HEIGHT = 88;
+export const WHITE_KEY_HEIGHT = 58;
 export const BLACK_KEY_WIDTH = 11;
-export const BLACK_KEY_HEIGHT = 56;
+export const BLACK_KEY_HEIGHT = 37;
 export const TOTAL_WIDTH = 988; // 52 white keys * 19px
 
 export const getNoteCenterX = (note) => {
@@ -141,12 +141,12 @@ const Thumb = ({ x, value, type, onPointerDown, isDragging }) => {
   );
 };
 
-export const Piano88Filter = ({ minRange, maxRange }) => {
+export const Piano88Filter = ({ minRange, maxRange, simulateMidi }) => {
   return (
     <div
       id="piano-container-88"
       data-testid="piano-container-88"
-      className="relative flex w-[988px] h-[88px] bg-white pointer-events-auto border-t border-[#7a7a7a]"
+      className="relative flex w-[988px] h-[58px] bg-white pointer-events-auto border-t border-[#7a7a7a]"
       style={{
         boxShadow: '0 4px 10px rgba(0,0,0,0.2)'
       }}
@@ -163,7 +163,7 @@ export const Piano88Filter = ({ minRange, maxRange }) => {
             className="relative flex items-end justify-center pb-[4px]"
             style={{
               width: '19px',
-              height: '88px',
+              height: '58px',
               flexShrink: 0,
               backgroundColor: '#ffffff',
               borderLeft: '1px solid #7a7a7a',
@@ -172,7 +172,23 @@ export const Piano88Filter = ({ minRange, maxRange }) => {
               borderTop: 'none',
               borderBottomLeftRadius: '4px',
               borderBottomRightRadius: '4px',
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
+              cursor: 'pointer'
+            }}
+            onMouseDown={() => {
+              if (simulateMidi) {
+                simulateMidi([144, n, 100]);
+              }
+            }}
+            onMouseUp={() => {
+              if (simulateMidi) {
+                simulateMidi([128, n, 0]);
+              }
+            }}
+            onMouseLeave={() => {
+              if (simulateMidi) {
+                simulateMidi([128, n, 0]);
+              }
             }}
           >
             {isOutOfRange && (
@@ -210,14 +226,32 @@ export const Piano88Filter = ({ minRange, maxRange }) => {
               left: `${NoteRects[n].x}px`,
               top: '-1px',
               width: '11px',
-              height: '56px',
+              height: '37px',
               backgroundColor: '#3a3a3a',
               borderBottom: '8px solid #050505',
               borderLeft: '2px solid #050505',
               borderRight: '2px solid #050505',
               borderTop: 'none',
               borderRadius: '0px',
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
+              cursor: 'pointer'
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              if (simulateMidi) {
+                simulateMidi([144, n, 100]);
+              }
+            }}
+            onMouseUp={(e) => {
+              e.stopPropagation();
+              if (simulateMidi) {
+                simulateMidi([128, n, 0]);
+              }
+            }}
+            onMouseLeave={() => {
+              if (simulateMidi) {
+                simulateMidi([128, n, 0]);
+              }
             }}
           >
             {isOutOfRange && (
@@ -237,6 +271,7 @@ export const NoteRangeFilterKeyboard = ({
   onModeChange: externalOnModeChange,
   range: externalRange,
   onRangeChange: externalOnRangeChange,
+  simulateMidi
 }) => {
   const store = useMidiStore();
 
@@ -337,7 +372,7 @@ export const NoteRangeFilterKeyboard = ({
             value={range} 
             onValueChange={onRangeChange} 
           />
-          <Piano88Filter minRange={range[0]} maxRange={range[1]} />
+          <Piano88Filter minRange={range[0]} maxRange={range[1]} simulateMidi={simulateMidi} />
         </div>
       )}
     </div>

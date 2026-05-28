@@ -4,7 +4,7 @@ export const useMidiStore = create((set, get) => ({
   bypass: false,
   activeChannels: Array.from({ length: 16 }, (_, i) => i + 1), // Default channels 1-16
   zones: [
-    { id: 'z-trans', type: 'transpose', startNote: 21, endNote: 59, color: '#f43f5e', octave: 0 },
+    { id: 'z-trans', type: 'transpose', startNote: 21, endNote: 59, color: '#f97316', octave: 1 },
     { id: 'z-play', type: 'play', startNote: 60, endNote: 108, color: '#3b82f6', octave: 0 },
   ],
   transposeAmount: 0,
@@ -13,7 +13,7 @@ export const useMidiStore = create((set, get) => ({
   midiInputs: [],
   midiOutputs: [],
   selectedInputId: null,
-  transposeOctave: 0,
+  transposeOctave: 1,
   playOctave: 0,
   transposeOrigin: 60,
   transposeTarget: 60,

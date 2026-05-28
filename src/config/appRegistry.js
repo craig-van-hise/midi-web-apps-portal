@@ -7,6 +7,13 @@ export const appRegistry = [
     description: "Generate and display sheet music notation from live MIDI input."
   },
   {
+    id: "midi-transposer",
+    title: "VV | MIDI Transposer",
+    icon: "SlidersHorizontal", 
+    url: "http://localhost:3006/",
+    description: "Split keyboards into Play and Transpose zones with polyphonic transposing and output filtering."
+  },
+  {
     id: "pitch-class-matrix",
     title: "VV | MIDI Pitch Class Matrix",
     icon: "Grid", 
@@ -26,19 +33,6 @@ export const appRegistry = [
     icon: "SlidersHorizontal", 
     url: "http://localhost:3004/",
     description: "Apply compression, expansion, and custom curves to MIDI velocity data."
-  },
-  {
-    id: "note-range-filter",
-    title: "VV | MIDI Note Range Filter",
-    icon: "Filter", 
-    url: "http://localhost:3005/",
-    description: "Block, wrap, or limit MIDI notes outside of a defined keyboard range."
-  },
-  {
-    id: "midi-transposer",
-    title: "VV | MIDI Transposer",
-    icon: "SlidersHorizontal", 
-    url: "http://localhost:3006/",
-    description: "Split keyboards into Play and Transpose zones with polyphonic transposing and output filtering."
   }
 ];
+

@@ -191,8 +191,10 @@ export function useWebMidi({ midiBus, onMidiOut, isBypassed }) {
           }
         }
       } else if (activeZone.type === 'play') {
+        const forceMono = polyphonyMode === 'poly' && transposeTargets.length > 1;
+
         if (!isNoteOn) {
-          if (polyphonyMode === 'poly') {
+          if (forceMono) {
             if (activePlayNote.current !== incomingNote) {
               return; // Return early and drop the Note Off message
             }
@@ -219,7 +221,7 @@ export function useWebMidi({ midiBus, onMidiOut, isBypassed }) {
         }
 
         // Note On Handling
-        if (polyphonyMode === 'poly') {
+        if (forceMono) {
           if (activePlayNote.current !== null && activePlayNote.current !== incomingNote) {
             const prevNoteData = activeRoutedNotes.current.get(activePlayNote.current);
             if (prevNoteData) {

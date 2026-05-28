@@ -25,7 +25,7 @@ for (let n = 21; n <= 108; n++) {
 
 const DEFAULT_ORIGIN = 60; // C4
 
-export default function TransposeKeyboard88({ onTransposeChange } = {}) {
+export default function TransposeKeyboard88({ onTransposeChange, simulateMidi } = {}) {
   const {
     transposeOrigin: originNote,
     setTransposeOrigin: setOriginNote,
@@ -280,7 +280,7 @@ export default function TransposeKeyboard88({ onTransposeChange } = {}) {
             </label>
           </Tooltip>
 
-          <Tooltip content="Held notes are instantly silenced.">
+          <Tooltip content="Held notes are silenced.">
             <label className="flex items-center gap-2 cursor-pointer text-[13px] hover:bg-neutral-50 p-1.5 rounded w-full font-sans">
               <input 
                 type="radio" 
@@ -388,7 +388,7 @@ export default function TransposeKeyboard88({ onTransposeChange } = {}) {
           </div>
 
           {/* Lower Surface - Physical Keyboard */}
-          <div ref={wrapperRef} id="keyboard-wrapper" className="relative flex w-[988px] h-[88px] bg-white pointer-events-auto border-t border-[#7a7a7a]" style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}>
+          <div ref={wrapperRef} id="keyboard-wrapper" className="relative flex w-[988px] h-[58px] bg-white pointer-events-auto border-t border-[#7a7a7a]" style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}>
             {whiteKeys.map((n) => {
               const isActive = activeTargets.includes(n);
               const isOrigin = n === originNote;
@@ -401,9 +401,9 @@ export default function TransposeKeyboard88({ onTransposeChange } = {}) {
                   className="relative transition-colors duration-75 flex items-end justify-center pb-[4px]"
                   style={{
                     width: '19px',
-                    height: '88px',
+                    height: '58px',
                     flexShrink: 0,
-                    backgroundColor: isActive ? '#f43f5e' : (isOrigin ? '#f3f4f6' : '#ffffff'),
+                    backgroundColor: isActive ? '#f97316' : (isOrigin ? '#f3f4f6' : '#ffffff'),
                     borderLeft: '1px solid #7a7a7a',
                     borderRight: '1px solid #7a7a7a',
                     borderBottom: '1px solid #7a7a7a',
@@ -412,9 +412,24 @@ export default function TransposeKeyboard88({ onTransposeChange } = {}) {
                     borderBottomRightRadius: '4px',
                     cursor: 'pointer',
                     boxSizing: 'border-box',
-                    boxShadow: isActive ? 'inset 0 0 10px rgba(255,255,255,0.4), 0 0 8px rgba(244,63,94,0.6)' : 'none',
+                    boxShadow: isActive ? 'inset 0 0 10px rgba(255,255,255,0.4), 0 0 8px rgba(249,115,22,0.6)' : 'none',
                   }}
-                  onMouseDown={(e) => handleKeyClick(e, n)}
+                  onMouseDown={(e) => {
+                    if (simulateMidi) {
+                      simulateMidi([144, n, 100]);
+                    }
+                    handleKeyClick(e, n);
+                  }}
+                  onMouseUp={() => {
+                    if (simulateMidi) {
+                      simulateMidi([128, n, 0]);
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (simulateMidi) {
+                      simulateMidi([128, n, 0]);
+                    }
+                  }}
                 >
                   {isC && (
                     <span 
@@ -445,8 +460,8 @@ export default function TransposeKeyboard88({ onTransposeChange } = {}) {
                     left: `${NoteRects[n].x}px`,
                     top: '-1px',
                     width: '11px',
-                    height: '56px',
-                    backgroundColor: isActive ? '#f43f5e' : (isOrigin ? '#4b5563' : '#3a3a3a'),
+                    height: '37px',
+                    backgroundColor: isActive ? '#f97316' : (isOrigin ? '#4b5563' : '#3a3a3a'),
                     borderBottom: '8px solid #050505',
                     borderLeft: '2px solid #050505',
                     borderRight: '2px solid #050505',
@@ -454,11 +469,25 @@ export default function TransposeKeyboard88({ onTransposeChange } = {}) {
                     borderRadius: '0px',
                     cursor: 'pointer',
                     boxSizing: 'border-box',
-                    boxShadow: isActive ? 'inset 0 0 6px rgba(255,255,255,0.4), 0 0 10px rgba(244,63,94,0.8)' : 'none',
+                    boxShadow: isActive ? 'inset 0 0 6px rgba(255,255,255,0.4), 0 0 10px rgba(249,115,22,0.8)' : 'none',
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
+                    if (simulateMidi) {
+                      simulateMidi([144, n, 100]);
+                    }
                     handleKeyClick(e, n);
+                  }}
+                  onMouseUp={(e) => {
+                    e.stopPropagation();
+                    if (simulateMidi) {
+                      simulateMidi([128, n, 0]);
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (simulateMidi) {
+                      simulateMidi([128, n, 0]);
+                    }
                   }}
                 />
               );

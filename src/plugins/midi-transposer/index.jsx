@@ -90,13 +90,15 @@ export default function MidiTransposerPlugin({
     }
   };
 
+  const simulateMidi = (data) => midiBus && midiBus.dispatchEvent(new CustomEvent('midi', { detail: data }));
+
   return (
     <div className="flex flex-col items-center gap-4 py-4 w-full min-h-[calc(100vh-3.5rem)] bg-white text-neutral-800 overflow-y-auto">
       {/* Three Keyboard Chassis stack with reduced margins */}
       <div className="flex flex-col gap-4 items-center w-full">
-        <KeySplitKeyboard />
-        <TransposeKeyboard88 />
-        <NoteRangeFilterKeyboard />
+        <KeySplitKeyboard simulateMidi={simulateMidi} />
+        <TransposeKeyboard88 simulateMidi={simulateMidi} />
+        <NoteRangeFilterKeyboard simulateMidi={simulateMidi} />
       </div>
 
       {/* Hidden logs for testing/diagnostic throttle assertions */}

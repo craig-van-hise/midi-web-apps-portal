@@ -8,8 +8,8 @@ import { appRegistry } from '../config/appRegistry';
 let capturedMidiBus = null;
 let capturedOnMidiOut = null;
 
-vi.mock('../plugins/note-range-filter', () => ({
-  default: function MockNoteRangeFilter(props) {
+vi.mock('../plugins/midi-transposer', () => ({
+  default: function MockMidiTransposer(props) {
     capturedMidiBus = props.midiBus;
     capturedOnMidiOut = props.onMidiOut;
     return React.createElement(mockDummyPlugin, props);
@@ -55,7 +55,7 @@ describe('App Portal Monolith Harness Tests', () => {
     const sidebarItem = screen.getByRole('heading', { name: 'VV | MIDI Chord Notator', level: 3 });
     expect(sidebarItem).toBeInTheDocument();
 
-    const secondSidebarItem = screen.getByRole('heading', { name: 'VV | MIDI Pitch Class Matrix', level: 3 });
+    const secondSidebarItem = screen.getByRole('heading', { name: 'VV | MIDI Transposer', level: 3 });
     expect(secondSidebarItem).toBeInTheDocument();
 
     // Verify initial active app title in the top bar
@@ -73,9 +73,9 @@ describe('App Portal Monolith Harness Tests', () => {
   it('verifies all downstream props dispatches to plugin', async () => {
     render(<App />);
 
-    // Click third item to mount DummyPlugin
-    const thirdSidebarItem = screen.getByRole('heading', { name: 'VV | MIDI Note Range Filter', level: 3 });
-    fireEvent.click(thirdSidebarItem);
+    // Click second item to mount DummyPlugin / MockMidiTransposer
+    const transposerSidebarItem = screen.getByRole('heading', { name: 'VV | MIDI Transposer', level: 3 });
+    fireEvent.click(transposerSidebarItem);
 
     // 1. Initial State Checks
     expect(screen.getByText('Bypassed:').nextSibling.textContent).toBe('FALSE');
@@ -110,9 +110,9 @@ describe('App Portal Monolith Harness Tests', () => {
   it('verifies global MIDI input message dispatches midi event to midiBus', async () => {
     render(<App />);
 
-    // Click third item to mount DummyPlugin / MockNoteRangeFilter
-    const thirdSidebarItem = screen.getByRole('heading', { name: 'VV | MIDI Note Range Filter', level: 3 });
-    fireEvent.click(thirdSidebarItem);
+    // Click second item to mount DummyPlugin / MockMidiTransposer
+    const transposerSidebarItem = screen.getByRole('heading', { name: 'VV | MIDI Transposer', level: 3 });
+    fireEvent.click(transposerSidebarItem);
 
     // Check that MIDI selector shows the mock device
     const select = await screen.findByLabelText(/midi input source/i);
@@ -168,8 +168,8 @@ describe('App Portal Monolith Harness Tests', () => {
 
     render(<App />);
 
-    const thirdSidebarItem = screen.getByRole('heading', { name: 'VV | MIDI Note Range Filter', level: 3 });
-    fireEvent.click(thirdSidebarItem);
+    const transposerSidebarItem = screen.getByRole('heading', { name: 'VV | MIDI Transposer', level: 3 });
+    fireEvent.click(transposerSidebarItem);
 
     await waitFor(() => {
       expect(capturedOnMidiOut).not.toBeNull();

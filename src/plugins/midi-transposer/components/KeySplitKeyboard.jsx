@@ -91,7 +91,7 @@ function OctaveKnob({ value, onChange }) {
   );
 }
 
-export default function KeySplitKeyboard({ onZonesChange }) {
+export default function KeySplitKeyboard({ onZonesChange, simulateMidi }) {
   const { 
     zones, 
     setZones, 
@@ -299,6 +299,9 @@ export default function KeySplitKeyboard({ onZonesChange }) {
   };
 
   const playNote = (note) => {
+    if (simulateMidi) {
+      simulateMidi([144, note, 100]);
+    }
     const el = document.getElementById(`pksplit-${note}`);
     if (!el) return;
 
@@ -328,6 +331,9 @@ export default function KeySplitKeyboard({ onZonesChange }) {
   };
 
   const releaseNote = (note) => {
+    if (simulateMidi) {
+      simulateMidi([128, note, 0]);
+    }
     const el = document.getElementById(`pksplit-${note}`);
     if (!el) return;
     const isAssigned = zonesRef.current.some(z => note >= z.startNote && note <= z.endNote);
@@ -508,7 +514,7 @@ export default function KeySplitKeyboard({ onZonesChange }) {
 
       {/* Lower Surface - Architecture Physical Keyboard */}
       {!isCollapsed && (
-        <div id="keyboard-wrapper" className="relative flex w-[988px] h-[88px] bg-white pointer-events-auto border-t border-[#7a7a7a]" style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}>
+        <div id="keyboard-wrapper" className="relative flex w-[988px] h-[58px] bg-white pointer-events-auto border-t border-[#7a7a7a]" style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}>
           {whiteKeys.map((n) => {
             const isAssigned = sortedZones.some(z => n >= z.startNote && n <= z.endNote);
             const isC = n % 12 === 0;
@@ -520,7 +526,7 @@ export default function KeySplitKeyboard({ onZonesChange }) {
                 className="relative transition-colors duration-75 flex items-end justify-center pb-[4px]"
                 style={{
                   width: '19px',
-                  height: '88px',
+                  height: '58px',
                   flexShrink: 0,
                   backgroundColor: isAssigned ? '#ffffff' : '#8c8c8c',
                   borderLeft: '1px solid #7a7a7a',
@@ -565,7 +571,7 @@ export default function KeySplitKeyboard({ onZonesChange }) {
                 left: `${NoteRects[n].x}px`,
                 top: '-1px',
                 width: '11px',
-                height: '56px',
+                height: '37px',
                 backgroundColor: isAssigned ? '#3a3a3a' : '#4a4a4a',
                 borderBottom: '8px solid #050505',
                 borderLeft: '2px solid #050505',
