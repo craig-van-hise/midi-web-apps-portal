@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import mockDummyPlugin from '../plugins/DummyPlugin';
@@ -46,6 +46,12 @@ describe('App Portal Monolith Harness Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     midiMessageListener = null;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    delete window.playNoteOn;
+    delete window.playNoteOff;
   });
 
   it('renders Sidebar with registry items and updates active app title when clicked', async () => {
@@ -142,7 +148,9 @@ describe('App Portal Monolith Harness Tests', () => {
     midiMessageListener(midiEvent);
 
     // Verify the event was dispatched to the bus
-    expect(midiSpy).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(midiSpy).toHaveBeenCalledTimes(1);
+    });
     expect(midiSpy.mock.calls[0][0].detail).toEqual([144, 60, 100]);
 
     // Clean up
@@ -166,16 +174,16 @@ describe('App Portal Monolith Harness Tests', () => {
       return [val, setVal];
     });
 
+    vi.useFakeTimers();
+
     render(<App />);
 
     const transposerSidebarItem = screen.getByRole('heading', { name: 'VV | MIDI Transposer', level: 3 });
     fireEvent.click(transposerSidebarItem);
 
-    await waitFor(() => {
-      expect(capturedOnMidiOut).not.toBeNull();
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
     });
-
-    vi.useFakeTimers();
 
     const playNoteOnSpy = vi.fn();
     let currentPlayNoteOn = null;
@@ -201,17 +209,28 @@ describe('App Portal Monolith Harness Tests', () => {
     act(() => {
       capturedOnMidiOut([0x90, 60, 100]); // t=0
     });
-    vi.advanceTimersByTime(1);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
     act(() => {
       capturedOnMidiOut([0x90, 61, 100]); // t=1
     });
-    vi.advanceTimersByTime(1);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
     act(() => {
       capturedOnMidiOut([0x90, 62, 100]); // t=2
     });
-    vi.advanceTimersByTime(1);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
     act(() => {
       capturedOnMidiOut([0x90, 63, 100]); // t=3
+    });
+
+    // Advance/run pending timers to trigger requestAnimationFrame consumer loop
+    act(() => {
+      vi.runOnlyPendingTimers();
     });
 
     expect(playNoteOnSpy).toHaveBeenCalledTimes(4);
@@ -233,8 +252,6 @@ describe('App Portal Monolith Harness Tests', () => {
     }
 
     useStateSpy.mockRestore();
-    vi.useRealTimers();
-    delete window.playNoteOn;
   });
 
   it('given multiple mocked MIDI inputs, when selecting device index 1, then the select value updates and does not revert to index 0 (Phase 1 Test Case 1)', async () => {

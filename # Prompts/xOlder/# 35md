@@ -1,0 +1,77 @@
+# Product Requirements Prompt (PRP) — ✅ Completed
+
+## 1. Project Context & Objectives
+**Objective:** Eliminate the ~35ms MIDI-to-Audio latency floor on macOS by bypassing browser audio buffer heuristics, neutralizing V8 Garbage Collection stalls during polyphonic playback, and migrating the MIDI event stream to a lock-free `SharedArrayBuffer` (SAB).
+**Current State:** The application utilizes dynamic instantiation of Tone.js nodes per keystroke and relies on standard main-thread event dispatching. 
+
+## 2. Technical Decisions & Dependencies
+* **AudioContext Override:** We will strictly enforce `Tone.setContext(new Tone.Context({ latencyHint: 'interactive', lookAhead: 0.005 }))` to force the OS to allocate the lowest permissible hardware block size.
+* **Object Pooling Algorithm (Zero-Allocation Playback):**
+    * *Implementation:* Instead of dynamically creating `Tone.Player` nodes in `LoopedSampler`, we will pre-allocate a fixed array of 32 persistent voices upon initialization.
+    * *Voice Structure:* `{ id: number, player: Tone.Player, env: Tone.AmplitudeEnvelope, isActive: boolean, currentNote: number, lastUsed: number }`
+    * *Voice Stealing Logic:* When a note triggers, find the first voice where `isActive === false`. If none exist, find the voice with the lowest `lastUsed` timestamp, force-release it, and reassign it.
+* **Lock-Free Ring Buffer (SAB):**
+    * *Memory Layout:* A `Uint8Array` backed by a `SharedArrayBuffer` of 1024 bytes. 
+    * *Index 0:* `write_pointer`
+    * *Index 1:* `read_pointer`
+    * *Index 2-1023:* MIDI Payload (Status, Note, Velocity).
+    * *Concurrency:* Use `Atomics.store` and `Atomics.load` to guarantee thread safety between the React UI thread and the Audio context.
+
+---
+
+## 3. Implementation Phases
+
+### Phase 1: Context Forcing & Buffer Optimization — ✅ Completed
+* **Objective:** Override Tone.js defaults to enforce "interactive" latency profiles.
+* **Instructions:**
+    1.  Open `src/core/rompler/engine.js`.
+    2.  In the `AudioEngine.init()` method, immediately before `await Tone.start()`, instantiate a new optimized context: 
+        ```javascript
+        const optimizedContext = new Tone.Context({
+          latencyHint: 'interactive',
+          lookAhead: 0.005,
+          updateInterval: 0.01 
+        });
+        Tone.setContext(optimizedContext);
+        ```
+    3.  Remove the legacy `Tone.context.lookAhead = 0.002;` assignments.
+* **TDD Checkpoint:** * **Test Case 1:** [Given] `AudioEngine.init()` is called, [Then] `Tone.context.rawContext.baseLatency` should reflect the interactive hint (mock context verification).
+    * **AGENT INSTRUCTION:** Set Phase status to 🔵 Active. Write and execute this test. Once it PASSES, set status to ✅ Completed. Do not proceed until status is ✅.
+
+### Phase 2: Zero-Allocation Object Pooling — ✅ Completed
+* **Objective:** Eliminate Main Thread Garbage Collection jitter by rewriting `LoopedSampler`.
+* **Instructions:**
+    1.  In `src/core/rompler/engine.js`, locate `class LoopedSampler`.
+    2.  Modify the constructor to pre-allocate an array of 32 voice objects attached to a Master Output Gain.
+        ```javascript
+        this.MAX_VOICES = 32;
+        this.voicePool = Array.from({ length: this.MAX_VOICES }, (_, i) => {
+            const env = new Tone.AmplitudeEnvelope(this.envelope).connect(this.output);
+            const player = new Tone.Player().connect(env);
+            player.loop = true;
+            return { id: i, player, env, isActive: false, currentNote: null, lastUsed: 0 };
+        });
+        ```
+    3.  Rewrite `triggerAttack(note, velocity)` to utilize the Voice Stealing Logic defined in Section 2. Assign the target buffer to `voice.player.buffer`, set `playbackRate`, update `voice.isActive = true`, `voice.lastUsed = Date.now()`, and trigger the envelope. *Do not use the `new` keyword anywhere in this method.*
+    4.  Rewrite `triggerRelease(note)` to find the active voice matching the note, trigger the envelope release, and set a localized timer (matching the release tail) to flag `voice.isActive = false`. *Do not call `.dispose()`.*
+* **TDD Checkpoint:** * **Test Case 1:** [Given] 33 rapid note-on triggers, [Then] the 33rd note should hijack the oldest active voice (verify `voice.id` reuse).
+    * **Test Case 2:** [Given] a note-off event, [Then] the node is NOT disposed, but `isActive` returns to `false` after the release tail time.
+    * **AGENT INSTRUCTION:** Set Phase status to 🔵 Active. Refactor and verify via Vitest. Once tests PASS, set status to ✅ Completed.
+
+### Phase 3: Headless MIDI Ring Buffer Integration — ✅ Completed
+* **Objective:** Decouple React's `App.jsx` event listener from the audio execution by implementing a lock-free SAB.
+* **Instructions:**
+    1.  Create `src/core/utils/RingBuffer.js`.
+    2.  Implement a class `MidiRingBuffer` that initializes a `new SharedArrayBuffer(1024)` and exposes `.push(status, note, velocity)` (using `Atomics.store`) and `.pull()` (using `Atomics.load`).
+    3.  In `src/core/App.jsx`, instantiate the `MidiRingBuffer` outside the component lifecycle.
+    4.  Update the Web MIDI `midimessage` listener to push directly to the ring buffer.
+* **TDD Checkpoint:** * **Test Case 1:** [Given] A pushed array `[144, 60, 100]`, [Then] `.pull()` returns `[144, 60, 100]` and advances the read pointer securely.
+    * **AGENT INSTRUCTION:** Set Phase status to 🔵 Active. Write and execute these tests. Once they PASS, set status to ✅ Completed.
+    * **HUMAN VALIDATION REQUIRED:** STOP. The agent cannot physically verify audio jitter or cross-origin isolation requirements for SAB. Ask the user to run `npm run dev`, enable cross-origin isolation headers in Vite if necessary, and play a rapid polyphonic chord. The user must confirm there are no audible dropouts before proceeding.
+
+---
+
+## 4. Final Review & Validation
+* **Technical Audit:** Verify that `new Tone.Player` only exists inside constructors, never in a playback loop. Ensure all Vitest unit tests pass.
+* **Status Reconciliation:** Verify all sub-phases are marked ✅ or ❌. Only then may you mark the top-level PRP status as ✅ Completed.
+* **Final Human Sign-off:** Present a summary of latency profiling logs (if active) to the user and request final validation.

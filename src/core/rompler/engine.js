@@ -12,18 +12,27 @@ const SMPLR_MAP = {
   'celeste': 'celesta'
 };
 
-class LoopedSampler {
+export class LoopedSampler {
   constructor(urls, baseUrl = '') {
     this.output = new Tone.Volume(0);
-    this.activeVoices = new Map();
     this.envelope = { attack: 0.1, decay: 0.1, sustain: 1.0, release: 1.0 };
+    
+    this.MAX_VOICES = 32;
+    this.voicePool = Array.from({ length: this.MAX_VOICES }, (_, i) => {
+        const env = new Tone.AmplitudeEnvelope(this.envelope).connect(this.output);
+        const player = new Tone.Player().connect(env);
+        player.loop = true;
+        return { id: i, player, env, isActive: false, currentNote: null, lastUsed: 0 };
+    });
+
     this.loaded = new Promise((resolve) => {
       this.buffers = new Tone.ToneAudioBuffers(urls, () => resolve(), baseUrl);
     });
   }
 
   triggerAttack(note, velocity = 1) {
-    if (this.activeVoices.has(note)) return; // prevent re-triggering active note
+    const existing = this.voicePool.find(v => v.isActive && v.currentNote === note);
+    if (existing) return;
     
     // Assume root note is C4 for the string sample (Adjust if the user maps multiple)
     const rootNote = Tone.Frequency('C4').toMidi(); 
@@ -33,40 +42,49 @@ class LoopedSampler {
     const buffer = this.buffers.get('C4'); // Get the root buffer
     if (!buffer) return;
 
-    const player = new Tone.Player(buffer);
-    player.loop = true; // INFINITE SUSTAIN
+    let voice = this.voicePool.find(v => !v.isActive);
+    if (!voice) {
+      // Voice stealing logic: find the voice with the lowest lastUsed timestamp
+      voice = this.voicePool.reduce((oldest, current) => {
+        return current.lastUsed < oldest.lastUsed ? current : oldest;
+      }, this.voicePool[0]);
+
+      voice.env.triggerRelease(Tone.immediate());
+      voice.player.stop();
+    }
+
+    voice.player.buffer = buffer;
 
     // Trim the sample to loop only the steady sustain phase (20% to 80%)
     const loopStart = buffer.duration * 0.2;
     const loopEnd = buffer.duration * 0.8;
     if (loopEnd > loopStart) {
-      player.loopStart = loopStart;
-      player.loopEnd = loopEnd;
+      voice.player.loopStart = loopStart;
+      voice.player.loopEnd = loopEnd;
     }
 
-    player.playbackRate = Math.pow(2, interval / 12); // Varispeed pitch shift
+    voice.player.playbackRate = Math.pow(2, interval / 12); // Varispeed pitch shift
     
-    const env = new Tone.AmplitudeEnvelope(this.envelope);
-    player.connect(env);
-    env.connect(this.output);
+    voice.isActive = true;
+    voice.currentNote = note;
+    voice.lastUsed = Date.now();
     
-    this.activeVoices.set(note, { player, env });
-    
-    player.start();
-    env.triggerAttack(Tone.now(), velocity);
+    voice.player.start();
+    voice.env.triggerAttack(Tone.immediate(), velocity);
   }
 
   triggerRelease(note) {
-    const voice = this.activeVoices.get(note);
+    const voice = this.voicePool.find(v => v.isActive && v.currentNote === note);
     if (!voice) return;
     
-    voice.env.triggerRelease();
-    this.activeVoices.delete(note);
+    voice.env.triggerRelease(Tone.immediate());
     
-    // Garbage collect after release phase
+    // Flag isActive = false after release tail time
     setTimeout(() => {
-      voice.player.dispose();
-      voice.env.dispose();
+      if (voice.currentNote === note) {
+        voice.isActive = false;
+        voice.currentNote = null;
+      }
     }, (this.envelope.release + 0.1) * 1000);
   }
 
@@ -82,11 +100,11 @@ class LoopedSampler {
   }
 
   dispose() {
-    this.activeVoices.forEach(voice => {
+    this.voicePool.forEach(voice => {
       voice.player.dispose();
       voice.env.dispose();
     });
-    this.activeVoices.clear();
+    this.voicePool = [];
     this.buffers.dispose();
     this.output.dispose();
   }
@@ -104,46 +122,46 @@ class AudioEngine {
     
     this.isInitialized = false;
     this.isInstrumentLoading = false;
+    this.initPromise = null;
   }
 
   async init() {
-    if (this.isInitialized) return;
-    
-    await Tone.start();
-    Tone.context.lookAhead = 0.002;
-    
-    if (Tone.context.rawContext && Tone.context.rawContext.baseLatency !== undefined) {
-      // Tone.js automatically attempts interactive latency, but we force lookAhead down.
-      Tone.context.lookAhead = 0.002; // 2ms safety buffer instead of 10ms
-    }
-    
-    // The Chain: Sampler -> PanVol -> ChannelSplitter -> MeterL / MeterR
-    //                            \-> Reverb -> Destination
+    if (this.isInitialized || this.initPromise) return this.initPromise;
 
-    this.panVol = new Tone.PanVol(0, 0); // pan 0, vol 0 (dB)
-    this.splitter = new Tone.Split(2);
-    this.meterL = new Tone.Meter();
-    this.meterR = new Tone.Meter();
-    this.reverb = new Tone.Reverb({
-      decay: 2.5,
-      preDelay: 0.01,
-      wet: 0,
-    });
-    
-    await this.reverb.generate(); // Ensure impulse response is created
+    this.initPromise = (async () => {
+      // Only set a new context if one isn't already running
+      if (!Tone.context || Tone.context.state !== 'running') {
+        const optimizedContext = new Tone.Context({
+          latencyHint: 'interactive',
+          lookAhead: 0, // Force absolute zero scheduling delay
+          updateInterval: 0.01 
+        });
+        Tone.setContext(optimizedContext);
+      }
 
-    this.internalTrim = new Tone.Gain(1);
-    this.internalTrim.connect(this.panVol);
+      // Start audio (will resolve immediately if user gesture exists, or queue if not)
+      try {
+        await Tone.start();
+      } catch (e) {
+        console.warn("Tone.start() waiting for interaction...");
+      }
 
-    this.panVol.connect(this.splitter);
-    this.splitter.connect(this.meterL, 0, 0);
-    this.splitter.connect(this.meterR, 1, 0);
-    this.panVol.chain(this.reverb, Tone.Destination);
+      this.panVol = new Tone.PanVol(0, 0); 
+      this.splitter = new Tone.Split(2);
+      this.meterL = new Tone.Meter();
+      this.meterR = new Tone.Meter();
+      this.reverb = new Tone.Reverb({ decay: 2.5, preDelay: 0.01, wet: 0 });
+      await this.reverb.generate(); 
+      this.internalTrim = new Tone.Gain(1).connect(this.panVol);
+      this.panVol.connect(this.splitter);
+      this.splitter.connect(this.meterL, 0, 0);
+      this.splitter.connect(this.meterR, 1, 0);
+      this.panVol.chain(this.reverb, Tone.Destination);
+      this.sampler = new Tone.Sampler().connect(this.internalTrim);
 
-    // Create a dummy sampler just to have the chain setup
-    this.sampler = new Tone.Sampler().connect(this.internalTrim);
-
-    this.isInitialized = true;
+      this.isInitialized = true;
+    })();
+    return this.initPromise;
   }
 
   async loadInstrument(instrument) {
@@ -240,7 +258,7 @@ class AudioEngine {
     latencyProfiler.markAudioTrigger(midiNote);
 
     if (this.sampler instanceof Tone.Sampler) {
-      this.sampler.triggerAttack(note, Tone.now(), velocity);
+      this.sampler.triggerAttack(note, Tone.immediate(), velocity);
     } else if (this.sampler instanceof LoopedSampler) {
       this.sampler.triggerAttack(note, velocity);
     } else if (typeof this.sampler.start === 'function') {
@@ -266,7 +284,7 @@ class AudioEngine {
     } 
     // If the instrument is a Tone.Sampler
     else if (typeof this.sampler.triggerRelease === 'function') {
-        this.sampler.triggerRelease(note, Tone.now());
+        this.sampler.triggerRelease(note, Tone.immediate());
     }
   }
 
@@ -291,7 +309,11 @@ class AudioEngine {
     if (this.sampler instanceof Tone.Sampler) {
       this.sampler.releaseAll();
     } else if (this.sampler instanceof LoopedSampler) {
-      this.sampler.activeVoices.forEach((_, note) => this.sampler.triggerRelease(note));
+      this.sampler.voicePool.forEach(voice => {
+        if (voice.isActive && voice.currentNote) {
+          this.sampler.triggerRelease(voice.currentNote);
+        }
+      });
     } else if (typeof this.sampler.stop === 'function') {
       this.sampler.stop();
     }
