@@ -15,13 +15,28 @@
 |  ├── # 19.md
 |  ├── # 2.md
 |  ├── # 20.md
+|  ├── # 22.md
+|  ├── # 23.md
+|  ├── # 24.md
+|  ├── # 25.md
+|  ├── # 26.md
+|  ├── # 27.md
+|  ├── # 28.md
+|  ├── # 29.md
 |  ├── # 3.md
+|  ├── # 30.md
+|  ├── # 31.md
+|  ├── # 32.md
+|  ├── # 33.md
 |  ├── # 4.md
 |  ├── # 5.md
 |  ├── # 6.md
 |  ├── # 7.md
 |  ├── # 8.md
 |  └── # 9.md
+├── 2026-05-25_REPO_REPORT.md
+├── DropFolder
+├── GUIDE_TO_LOW_LATENCY.md
 ├── PROJECT_CONTEXT_BUNDLE.md
 ├── PROJECT_STATE.md
 ├── README.md
@@ -62,7 +77,6 @@
 |  |  └── utils
 |  |     ├── latencyProfiler.js
 |  |     └── latencyProfiler.test.js
-|  ├── hooks
 |  ├── index.css
 |  ├── main.jsx
 |  ├── plugins
@@ -72,15 +86,12 @@
 |  |  |  ├── audio
 |  |  |  |  └── engine.ts
 |  |  |  ├── components
-|  |  |  |  ├── ErrorBoundary.tsx
 |  |  |  |  ├── InfoModal.tsx
 |  |  |  |  ├── KeySignatureSelector.test.tsx
 |  |  |  |  ├── KeySignatureSelector.tsx
 |  |  |  |  ├── Keyboard.colorMatrix.test.tsx
 |  |  |  |  ├── Keyboard.test.tsx
 |  |  |  |  ├── Keyboard.tsx
-|  |  |  |  ├── Knob.tsx
-|  |  |  |  ├── NavController.tsx
 |  |  |  |  ├── NotationCanvas.bugs.test.tsx
 |  |  |  |  ├── NotationCanvas.colorMatrix.test.tsx
 |  |  |  |  ├── NotationCanvas.events.test.tsx
@@ -91,22 +102,19 @@
 |  |  |  |  ├── NotationCanvas.shortcutAudio.test.tsx
 |  |  |  |  ├── NotationCanvas.test.tsx
 |  |  |  |  ├── NotationCanvas.tsx
-|  |  |  |  ├── RomplerFooter.tsx
 |  |  |  |  ├── SettingsModal.test.tsx
 |  |  |  |  ├── SettingsModal.tsx
-|  |  |  |  ├── VUMeter.tsx
-|  |  |  |  ├── navTypes.ts
 |  |  |  |  └── toolbar
 |  |  |  ├── hooks
 |  |  |  ├── index.jsx
+|  |  |  ├── index.test.jsx
 |  |  |  ├── lib
 |  |  |  |  ├── usePersistentState.ts
 |  |  |  |  └── utils.ts
 |  |  |  ├── midi
 |  |  |  |  ├── MIDIProvider.playable.test.tsx
 |  |  |  |  ├── MIDIProvider.test.tsx
-|  |  |  |  ├── MIDIProvider.tsx
-|  |  |  |  └── MidiPortSelector.tsx
+|  |  |  |  └── MIDIProvider.tsx
 |  |  |  └── utils
 |  |  |     ├── binaryLut.ts
 |  |  |     ├── chordSpeller.test.ts
@@ -119,6 +127,7 @@
 |  |  ├── dynamics
 |  |  |  └── index.tsx
 |  |  ├── monitor
+|  |  |  ├── index.test.tsx
 |  |  |  └── index.tsx
 |  |  ├── note-range-filter
 |  |  |  ├── components
@@ -129,18 +138,17 @@
 |  |  └── pitch-class-matrix
 |  |     ├── components
 |  |     |  └── 88-key.tsx
+|  |     ├── index.test.tsx
 |  |     ├── index.tsx
 |  |     └── styles
 |  |        └── matrix.css
 |  ├── setupTests.js
 |  └── utils
-|     ├── ChameleonDummy.jsx
-|     └── ChameleonDummy.test.jsx
 └── vite.config.js
 
-directory: 982 file: 8192
+directory: 989 file: 8202
 
-ignored: directory (143)
+ignored: directory (144)
 
 
 [2K[1G

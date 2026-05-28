@@ -3,51 +3,51 @@
 ## 1. Architecture & Directory Tree
 ```text
 midi-web-apps-portal/
-├── README.md
+├── public/
+│   ├── fonts/
+│   │   └── Bravura.woff2
+│   ├── PCS_LUT.dat
+│   ├── favicon.svg
+│   └── icons.svg
+├── src/
+│   ├── assets/
+│   │   ├── hero.png
+│   │   ├── react.svg
+│   │   └── vite.svg
+│   ├── config/
+│   │   ├── appRegistry.js
+│   │   └── appRegistry.test.js
+│   ├── core/
+│   │   ├── rompler/
+│   │   │   ├── MasterRompler.css
+│   │   │   └── MasterRompler.jsx
+│   │   ├── utils/
+│   │   │   ├── latencyProfiler.js
+│   │   │   └── latencyProfiler.test.js
+│   │   ├── App.css
+│   │   ├── App.jsx
+│   │   └── App.test.jsx
+│   ├── plugins/
+│   │   ├── chord-notator/
+│   │   ├── dynamics/
+│   │   ├── monitor/
+│   │   ├── note-range-filter/
+│   │   ├── pitch-class-matrix/
+│   │   ├── DummyPlugin.jsx
+│   │   └── DummyPlugin.test.jsx
+│   ├── index.css
+│   ├── main.jsx
+│   └── setupTests.js
+├── xCleanup/
+│   └── src/
+│       ├── hooks/
+│       ├── plugins/
+│       └── utils/
 ├── eslint.config.js
 ├── index.html
 ├── package.json
 ├── package-lock.json
-├── vite.config.js
-├── public/
-│   ├── PCS_LUT.dat
-│   ├── favicon.svg
-│   ├── icons.svg
-│   └── fonts/
-│       └── Bravura.woff2
-└── src/
-    ├── main.jsx
-    ├── index.css
-    ├── setupTests.js
-    ├── assets/
-    │   ├── hero.png
-    │   ├── react.svg
-    │   └── vite.svg
-    ├── config/
-    │   ├── appRegistry.js
-    │   └── appRegistry.test.js
-    ├── core/
-    │   ├── App.css
-    │   ├── App.jsx
-    │   ├── App.test.jsx
-    │   ├── rompler/
-    │   │   ├── MasterRompler.css
-    │   │   └── MasterRompler.jsx
-    │   └── utils/
-    │       ├── latencyProfiler.js
-    │       └── latencyProfiler.test.js
-    ├── hooks/
-    ├── plugins/
-    │   ├── DummyPlugin.jsx
-    │   ├── DummyPlugin.test.jsx
-    │   ├── chord-notator/
-    │   ├── dynamics/
-    │   ├── monitor/
-    │   ├── note-range-filter/
-    │   └── pitch-class-matrix/
-    └── utils/
-        ├── ChameleonDummy.jsx
-        └── ChameleonDummy.test.jsx
+└── vite.config.js
 ```
 
 ## 2. Tech Stack
@@ -60,20 +60,15 @@ midi-web-apps-portal/
 - **Testing**: Vitest, React Testing Library
 
 ## 3. Current System Capabilities
-- **Portal Host Architecture**: A hardware-inspired dark-mode master interface featuring:
-  - Collapsible Sidebar with an integrated, extensible application registry.
-  - Global master controls (Power, Panic reset, Info modals, Settings panels).
-  - Global Web MIDI API manager routing hardware input directly down to active plugins.
-  - Global Sample-based Audio Rompler drawer that plugins hook into using a unified MIDI output prop.
-  - **UI Throttling**: Frame-rate limited state sync (~30fps / 32ms) separating instant synchronous audio triggers from asynchronous rendering cycles.
-- **Integrated Plugins**:
-  - **Chord Notator**: Renders sheet music notation (using Bravura music font and VexFlow-style rendering) from live MIDI inputs.
-  - **Pitch Class Matrix**: Maps and quantizes incoming MIDI notes to selected roots and scales in real-time. Includes arrow visualizations and throttled keyboard mapping.
-  - **MIDI Monitor**: Visualizes live MIDI status messages, note numbers, velocities, and CC changes.
+- **Audio Engine**: Unified sample-based Tone.js Rompler that plugins hook into. Supports polyphonic note generation and instrument switching without blocking.
+- **Tracking/MIDI Engine**: Global Web MIDI API manager routing hardware input directly down to active plugins using a ref-based `EventTarget` Event Bus, avoiding React batching issues and stuck notes.
+- **Visualizer & Processing Plugins**:
+  - **Chord Notator**: Renders sheet music notation from live MIDI inputs in real-time.
+  - **Pitch Class Matrix**: Maps and quantizes incoming MIDI notes to specific roots and scales.
+  - **MIDI Monitor**: Logs live MIDI status messages, note numbers, velocities, and CC changes.
   - **MIDI Dynamics**: Multi-mode velocity curve adjustment with compression, expansion, and custom thresholds.
   - **Note Range Filter**: Restricts, clips, or wraps incoming MIDI notes based on user-defined key limits.
+- **UI State Logic**: Frame-rate limited state sync (~30fps / 32ms) separating instant synchronous audio triggers from asynchronous rendering cycles.
 
 ## 4. Recent Evolution
-- **UI Throttling & Latency Optimization**: Resolved a "strummed" audio effect during polyphonic chord inputs by throttling host and plugin state updates to 32ms using `useRef` + `lodash/throttle` while keeping Tone.js audio generation strictly synchronous.
-- **Midi Event Bus Refactoring**: Moved from state-based `midiIn` prop-drilling to a ref-based `EventTarget` Event Bus, eliminating React state batching issues and stuck notes.
-- **CI/CD Deployment Setup**: Added a custom GitHub Actions workflow for automatic deployment to GitHub Pages.
+Recent updates focused on fixing frozen MIDI input port selection issues and resolving UI layout and styling bugs. Visual polish was applied to the MIDI Monitor, Pitch Class Matrix, and Chord Notator modules to improve UI presentation, rendering stability, and layout sizing.

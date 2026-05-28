@@ -35,16 +35,19 @@ The repository is strictly divided into the core host environment and isolated p
 midi-web-apps-portal/
 ├── public/                 # Global assets, LUTs, and digital fonts
 ├── src/
+│   ├── config/             # App Registry and configurations
+│   │   └── appRegistry.js
 │   ├── core/               # THE PORTAL HOST
 │   │   ├── rompler/        # Tone.js Audio Engine & UI Drawer
-│   │   ├── App.jsx         # Main Layout & State Controller
-│   │   └── config.js       # App Registry for the sidebar
+│   │   ├── utils/          # Host utilities (e.g. latency profiler)
+│   │   └── App.jsx         # Main Host Layout & State Controller
 │   │
 │   └── plugins/            # THE HEADLESS MODULES
-│       ├── chord-notator/  # Strictly isolated plugin directory
-│       ├── dynamics/
-│       └── ...
-
+│       ├── chord-notator/  # Renders sheet music notation
+│       ├── dynamics/       # Velocity compressor/expander
+│       ├── monitor/        # MIDI log/event visualizer
+│       ├── note-range-filter/ # Filters MIDI note ranges
+│       └── pitch-class-matrix/ # Scale and root quantizer
 ```
 
 ---

@@ -17,13 +17,28 @@
 |  ├── # 19.md
 |  ├── # 2.md
 |  ├── # 20.md
+|  ├── # 22.md
+|  ├── # 23.md
+|  ├── # 24.md
+|  ├── # 25.md
+|  ├── # 26.md
+|  ├── # 27.md
+|  ├── # 28.md
+|  ├── # 29.md
 |  ├── # 3.md
+|  ├── # 30.md
+|  ├── # 31.md
+|  ├── # 32.md
+|  ├── # 33.md
 |  ├── # 4.md
 |  ├── # 5.md
 |  ├── # 6.md
 |  ├── # 7.md
 |  ├── # 8.md
 |  └── # 9.md
+├── 2026-05-25_REPO_REPORT.md
+├── DropFolder
+├── GUIDE_TO_LOW_LATENCY.md
 ├── PROJECT_CONTEXT_BUNDLE.md
 ├── PROJECT_STATE.md
 ├── README.md
@@ -64,7 +79,6 @@
 |  |  └── utils
 |  |     ├── latencyProfiler.js
 |  |     └── latencyProfiler.test.js
-|  ├── hooks
 |  ├── index.css
 |  ├── main.jsx
 |  ├── plugins
@@ -74,15 +88,12 @@
 |  |  |  ├── audio
 |  |  |  |  └── engine.ts
 |  |  |  ├── components
-|  |  |  |  ├── ErrorBoundary.tsx
 |  |  |  |  ├── InfoModal.tsx
 |  |  |  |  ├── KeySignatureSelector.test.tsx
 |  |  |  |  ├── KeySignatureSelector.tsx
 |  |  |  |  ├── Keyboard.colorMatrix.test.tsx
 |  |  |  |  ├── Keyboard.test.tsx
 |  |  |  |  ├── Keyboard.tsx
-|  |  |  |  ├── Knob.tsx
-|  |  |  |  ├── NavController.tsx
 |  |  |  |  ├── NotationCanvas.bugs.test.tsx
 |  |  |  |  ├── NotationCanvas.colorMatrix.test.tsx
 |  |  |  |  ├── NotationCanvas.events.test.tsx
@@ -93,22 +104,19 @@
 |  |  |  |  ├── NotationCanvas.shortcutAudio.test.tsx
 |  |  |  |  ├── NotationCanvas.test.tsx
 |  |  |  |  ├── NotationCanvas.tsx
-|  |  |  |  ├── RomplerFooter.tsx
 |  |  |  |  ├── SettingsModal.test.tsx
 |  |  |  |  ├── SettingsModal.tsx
-|  |  |  |  ├── VUMeter.tsx
-|  |  |  |  ├── navTypes.ts
 |  |  |  |  └── toolbar
 |  |  |  ├── hooks
 |  |  |  ├── index.jsx
+|  |  |  ├── index.test.jsx
 |  |  |  ├── lib
 |  |  |  |  ├── usePersistentState.ts
 |  |  |  |  └── utils.ts
 |  |  |  ├── midi
 |  |  |  |  ├── MIDIProvider.playable.test.tsx
 |  |  |  |  ├── MIDIProvider.test.tsx
-|  |  |  |  ├── MIDIProvider.tsx
-|  |  |  |  └── MidiPortSelector.tsx
+|  |  |  |  └── MIDIProvider.tsx
 |  |  |  └── utils
 |  |  |     ├── binaryLut.ts
 |  |  |     ├── chordSpeller.test.ts
@@ -121,6 +129,7 @@
 |  |  ├── dynamics
 |  |  |  └── index.tsx
 |  |  ├── monitor
+|  |  |  ├── index.test.tsx
 |  |  |  └── index.tsx
 |  |  ├── note-range-filter
 |  |  |  ├── components
@@ -131,18 +140,17 @@
 |  |  └── pitch-class-matrix
 |  |     ├── components
 |  |     |  └── 88-key.tsx
+|  |     ├── index.test.tsx
 |  |     ├── index.tsx
 |  |     └── styles
 |  |        └── matrix.css
 |  ├── setupTests.js
 |  └── utils
-|     ├── ChameleonDummy.jsx
-|     └── ChameleonDummy.test.jsx
 └── vite.config.js
 
-directory: 982 file: 8192
+directory: 989 file: 8202
 
-ignored: directory (143)
+ignored: directory (144)
 
 
 [2K[1G
@@ -154,51 +162,51 @@ ignored: directory (143)
 ## 1. Architecture & Directory Tree
 ```text
 midi-web-apps-portal/
-├── README.md
+├── public/
+│   ├── fonts/
+│   │   └── Bravura.woff2
+│   ├── PCS_LUT.dat
+│   ├── favicon.svg
+│   └── icons.svg
+├── src/
+│   ├── assets/
+│   │   ├── hero.png
+│   │   ├── react.svg
+│   │   └── vite.svg
+│   ├── config/
+│   │   ├── appRegistry.js
+│   │   └── appRegistry.test.js
+│   ├── core/
+│   │   ├── rompler/
+│   │   │   ├── MasterRompler.css
+│   │   │   └── MasterRompler.jsx
+│   │   ├── utils/
+│   │   │   ├── latencyProfiler.js
+│   │   │   └── latencyProfiler.test.js
+│   │   ├── App.css
+│   │   ├── App.jsx
+│   │   └── App.test.jsx
+│   ├── plugins/
+│   │   ├── chord-notator/
+│   │   ├── dynamics/
+│   │   ├── monitor/
+│   │   ├── note-range-filter/
+│   │   ├── pitch-class-matrix/
+│   │   ├── DummyPlugin.jsx
+│   │   └── DummyPlugin.test.jsx
+│   ├── index.css
+│   ├── main.jsx
+│   └── setupTests.js
+├── xCleanup/
+│   └── src/
+│       ├── hooks/
+│       ├── plugins/
+│       └── utils/
 ├── eslint.config.js
 ├── index.html
 ├── package.json
 ├── package-lock.json
-├── vite.config.js
-├── public/
-│   ├── PCS_LUT.dat
-│   ├── favicon.svg
-│   ├── icons.svg
-│   └── fonts/
-│       └── Bravura.woff2
-└── src/
-    ├── main.jsx
-    ├── index.css
-    ├── setupTests.js
-    ├── assets/
-    │   ├── hero.png
-    │   ├── react.svg
-    │   └── vite.svg
-    ├── config/
-    │   ├── appRegistry.js
-    │   └── appRegistry.test.js
-    ├── core/
-    │   ├── App.css
-    │   ├── App.jsx
-    │   ├── App.test.jsx
-    │   ├── rompler/
-    │   │   ├── MasterRompler.css
-    │   │   └── MasterRompler.jsx
-    │   └── utils/
-    │       ├── latencyProfiler.js
-    │       └── latencyProfiler.test.js
-    ├── hooks/
-    ├── plugins/
-    │   ├── DummyPlugin.jsx
-    │   ├── DummyPlugin.test.jsx
-    │   ├── chord-notator/
-    │   ├── dynamics/
-    │   ├── monitor/
-    │   ├── note-range-filter/
-    │   └── pitch-class-matrix/
-    └── utils/
-        ├── ChameleonDummy.jsx
-        └── ChameleonDummy.test.jsx
+└── vite.config.js
 ```
 
 ## 2. Tech Stack
@@ -211,23 +219,18 @@ midi-web-apps-portal/
 - **Testing**: Vitest, React Testing Library
 
 ## 3. Current System Capabilities
-- **Portal Host Architecture**: A hardware-inspired dark-mode master interface featuring:
-  - Collapsible Sidebar with an integrated, extensible application registry.
-  - Global master controls (Power, Panic reset, Info modals, Settings panels).
-  - Global Web MIDI API manager routing hardware input directly down to active plugins.
-  - Global Sample-based Audio Rompler drawer that plugins hook into using a unified MIDI output prop.
-  - **UI Throttling**: Frame-rate limited state sync (~30fps / 32ms) separating instant synchronous audio triggers from asynchronous rendering cycles.
-- **Integrated Plugins**:
-  - **Chord Notator**: Renders sheet music notation (using Bravura music font and VexFlow-style rendering) from live MIDI inputs.
-  - **Pitch Class Matrix**: Maps and quantizes incoming MIDI notes to selected roots and scales in real-time. Includes arrow visualizations and throttled keyboard mapping.
-  - **MIDI Monitor**: Visualizes live MIDI status messages, note numbers, velocities, and CC changes.
+- **Audio Engine**: Unified sample-based Tone.js Rompler that plugins hook into. Supports polyphonic note generation and instrument switching without blocking.
+- **Tracking/MIDI Engine**: Global Web MIDI API manager routing hardware input directly down to active plugins using a ref-based `EventTarget` Event Bus, avoiding React batching issues and stuck notes.
+- **Visualizer & Processing Plugins**:
+  - **Chord Notator**: Renders sheet music notation from live MIDI inputs in real-time.
+  - **Pitch Class Matrix**: Maps and quantizes incoming MIDI notes to specific roots and scales.
+  - **MIDI Monitor**: Logs live MIDI status messages, note numbers, velocities, and CC changes.
   - **MIDI Dynamics**: Multi-mode velocity curve adjustment with compression, expansion, and custom thresholds.
   - **Note Range Filter**: Restricts, clips, or wraps incoming MIDI notes based on user-defined key limits.
+- **UI State Logic**: Frame-rate limited state sync (~30fps / 32ms) separating instant synchronous audio triggers from asynchronous rendering cycles.
 
 ## 4. Recent Evolution
-- **UI Throttling & Latency Optimization**: Resolved a "strummed" audio effect during polyphonic chord inputs by throttling host and plugin state updates to 32ms using `useRef` + `lodash/throttle` while keeping Tone.js audio generation strictly synchronous.
-- **Midi Event Bus Refactoring**: Moved from state-based `midiIn` prop-drilling to a ref-based `EventTarget` Event Bus, eliminating React state batching issues and stuck notes.
-- **CI/CD Deployment Setup**: Added a custom GitHub Actions workflow for automatic deployment to GitHub Pages.
+Recent updates focused on fixing frozen MIDI input port selection issues and resolving UI layout and styling bugs. Visual polish was applied to the MIDI Monitor, Pitch Class Matrix, and Chord Notator modules to improve UI presentation, rendering stability, and layout sizing.
 
 
 ### FILE: README.md
@@ -269,16 +272,19 @@ The repository is strictly divided into the core host environment and isolated p
 midi-web-apps-portal/
 ├── public/                 # Global assets, LUTs, and digital fonts
 ├── src/
+│   ├── config/             # App Registry and configurations
+│   │   └── appRegistry.js
 │   ├── core/               # THE PORTAL HOST
 │   │   ├── rompler/        # Tone.js Audio Engine & UI Drawer
-│   │   ├── App.jsx         # Main Layout & State Controller
-│   │   └── config.js       # App Registry for the sidebar
+│   │   ├── utils/          # Host utilities (e.g. latency profiler)
+│   │   └── App.jsx         # Main Host Layout & State Controller
 │   │
 │   └── plugins/            # THE HEADLESS MODULES
-│       ├── chord-notator/  # Strictly isolated plugin directory
-│       ├── dynamics/
-│       └── ...
-
+│       ├── chord-notator/  # Renders sheet music notation
+│       ├── dynamics/       # Velocity compressor/expander
+│       ├── monitor/        # MIDI log/event visualizer
+│       ├── note-range-filter/ # Filters MIDI note ranges
+│       └── pitch-class-matrix/ # Scale and root quantizer
 ```
 
 ---
