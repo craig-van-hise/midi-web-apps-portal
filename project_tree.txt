@@ -126,6 +126,19 @@
 |  |  |     └── symmetricalSpeller.ts
 |  |  ├── dynamics
 |  |  |  └── index.tsx
+|  |  ├── midi-transposer
+|  |  |  ├── components
+|  |  |  |  ├── KeySplitKeyboard.jsx
+|  |  |  |  ├── NoteRangeFilterKeyboard.jsx
+|  |  |  |  ├── TransposeKeyboard88.jsx
+|  |  |  |  ├── keyboardMap.js
+|  |  |  |  └── ui
+|  |  |  ├── hooks
+|  |  |  |  └── useWebMidi.js
+|  |  |  ├── index.jsx
+|  |  |  ├── index.test.jsx
+|  |  |  └── store
+|  |  |     └── useMidiStore.js
 |  |  ├── monitor
 |  |  |  ├── index.test.tsx
 |  |  |  └── index.tsx
@@ -146,7 +159,7 @@
 |  └── utils
 └── vite.config.js
 
-directory: 989 file: 8202
+directory: 994 file: 8210
 
 ignored: directory (144)
 

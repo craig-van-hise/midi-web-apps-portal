@@ -30,6 +30,19 @@ midi-web-apps-portal/
 │   ├── plugins/
 │   │   ├── chord-notator/
 │   │   ├── dynamics/
+│   │   ├── midi-transposer/
+│   │   │   ├── components/
+│   │   │   │   ├── ui/
+│   │   │   │   ├── KeySplitKeyboard.jsx
+│   │   │   │   ├── NoteRangeFilterKeyboard.jsx
+│   │   │   │   ├── TransposeKeyboard88.jsx
+│   │   │   │   └── keyboardMap.js
+│   │   │   ├── hooks/
+│   │   │   │   └── useWebMidi.js
+│   │   │   ├── store/
+│   │   │   │   └── useMidiStore.js
+│   │   │   ├── index.jsx
+│   │   │   └── index.test.jsx
 │   │   ├── monitor/
 │   │   ├── note-range-filter/
 │   │   ├── pitch-class-matrix/
@@ -68,7 +81,8 @@ midi-web-apps-portal/
   - **MIDI Monitor**: Logs live MIDI status messages, note numbers, velocities, and CC changes.
   - **MIDI Dynamics**: Multi-mode velocity curve adjustment with compression, expansion, and custom thresholds.
   - **Note Range Filter**: Restricts, clips, or wraps incoming MIDI notes based on user-defined key limits.
+  - **MIDI Transposer**: Splits keyboard ranges into interactive draggable zones (Play and Transpose) supporting polyphonic chord transpositions, customizable transpose hold sustain modes (Sustain Original, Immediate Cutoff, Retrigger), and range-limit filtering on outputs.
 - **UI State Logic**: Frame-rate limited state sync (~30fps / 32ms) separating instant synchronous audio triggers from asynchronous rendering cycles.
 
 ## 4. Recent Evolution
-Recent updates focused on fixing frozen MIDI input port selection issues and resolving UI layout and styling bugs. Visual polish was applied to the MIDI Monitor, Pitch Class Matrix, and Chord Notator modules to improve UI presentation, rendering stability, and layout sizing.
+Integrated the standalone MIDI Transposer application as a headless, decoupled module within the portal. Refactored components to clean JS/JSX structures, migrated store configurations to support portal prop hooks (`midiBus` and `onMidiOut`), and implemented local settings/information modals with dismissible close buttons. Verified all unit tests successfully via Vitest.

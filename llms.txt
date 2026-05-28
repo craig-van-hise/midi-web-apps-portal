@@ -13,6 +13,7 @@ A unified browser-based workspace for real-time MIDI processing plugins and Tone
 - [MIDI Monitor](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/src/plugins/monitor)
 - [MIDI Dynamics](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/src/plugins/dynamics)
 - [Note Range Filter](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/src/plugins/note-range-filter)
+- [MIDI Transposer](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/src/plugins/midi-transposer)
 
 ## Technical Reference
 - Architecture details and recent changes: [PROJECT_STATE.md](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/PROJECT_STATE.md)

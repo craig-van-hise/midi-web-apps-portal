@@ -24,6 +24,7 @@ Currently, the portal hosts the following integrated plugins:
 3.  **VV | MIDI Monitor:** Provides real-time visual analysis and logging of incoming MIDI messages and Continuous Controller (CC) data.
 4.  **VV | MIDI Dynamics:** Applies custom processing curves, compression, and expansion to MIDI velocity data.
 5.  **VV | MIDI Note Range Filter:** Blocks, wraps, or limits MIDI notes that fall outside of a user-defined keyboard range.
+6.  **VV | MIDI Transposer:** Splits keyboards into Play and Transpose zones with polyphonic transposing and output filtering.
 
 ---
 
@@ -41,13 +42,13 @@ midi-web-apps-portal/
 │   │   ├── rompler/        # Tone.js Audio Engine & UI Drawer
 │   │   ├── utils/          # Host utilities (e.g. latency profiler)
 │   │   └── App.jsx         # Main Host Layout & State Controller
-│   │
-│   └── plugins/            # THE HEADLESS MODULES
-│       ├── chord-notator/  # Renders sheet music notation
-│       ├── dynamics/       # Velocity compressor/expander
-│       ├── monitor/        # MIDI log/event visualizer
-│       ├── note-range-filter/ # Filters MIDI note ranges
-│       └── pitch-class-matrix/ # Scale and root quantizer
+    └── plugins/            # THE HEADLESS MODULES
+        ├── chord-notator/  # Renders sheet music notation
+        ├── dynamics/       # Velocity compressor/expander
+        ├── midi-transposer/ # Two-zone keyboard transposer & output filter
+        ├── monitor/        # MIDI log/event visualizer
+        ├── note-range-filter/ # Filters MIDI note ranges
+        └── pitch-class-matrix/ # Scale and root quantizer
 ```
 
 ---
