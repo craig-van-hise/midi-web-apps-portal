@@ -33,5 +33,12 @@ export const appRegistry = [
     icon: "Filter", 
     url: "http://localhost:3005/",
     description: "Block, wrap, or limit MIDI notes outside of a defined keyboard range."
+  },
+  {
+    id: "midi-transposer",
+    title: "VV | MIDI Transposer",
+    icon: "SlidersHorizontal", 
+    url: "http://localhost:3006/",
+    description: "Split keyboards into Play and Transpose zones with polyphonic transposing and output filtering."
   }
 ];
