@@ -11,7 +11,6 @@ const SMPLR_MAP = {
   'celeste': 'celesta'
 };
 
-<<<<<<< HEAD
 // Note name to MIDI number mapping for sample maps
 const NOTE_TO_MIDI = {
   'C1': 24, 'C#1': 25, 'D1': 26, 'D#1': 27, 'E1': 28, 'F1': 29, 'F#1': 30, 'G1': 31, 'G#1': 32, 'A1': 33, 'A#1': 34, 'B1': 35,
@@ -21,105 +20,6 @@ const NOTE_TO_MIDI = {
   'C5': 72, 'C#5': 73, 'D5': 74, 'D#5': 75, 'E5': 76, 'F5': 77, 'F#5': 78, 'G5': 79, 'G#5': 80, 'A5': 81, 'A#5': 82, 'B5': 83,
   'C6': 84, 'C#6': 85, 'D6': 86, 'D#6': 87, 'E6': 88, 'F6': 89, 'F#6': 90, 'G6': 91, 'G#6': 92, 'A6': 93, 'A#6': 94, 'B6': 95,
 };
-=======
-export class LoopedSampler {
-  constructor(urls, baseUrl = '') {
-    this.output = new Tone.Volume(0);
-    this.envelope = { attack: 0.1, decay: 0.1, sustain: 1.0, release: 1.0 };
-    
-    this.MAX_VOICES = 32;
-    this.voicePool = Array.from({ length: this.MAX_VOICES }, (_, i) => {
-        const env = new Tone.AmplitudeEnvelope(this.envelope).connect(this.output);
-        const player = new Tone.Player().connect(env);
-        player.loop = true;
-        return { id: i, player, env, isActive: false, currentNote: null, lastUsed: 0 };
-    });
-
-    this.loaded = new Promise((resolve) => {
-      this.buffers = new Tone.ToneAudioBuffers(urls, () => resolve(), baseUrl);
-    });
-  }
-
-  triggerAttack(note, velocity = 1) {
-    const existing = this.voicePool.find(v => v.isActive && v.currentNote === note);
-    if (existing) return;
-    
-    // Assume root note is C4 for the string sample (Adjust if the user maps multiple)
-    const rootNote = Tone.Frequency('C4').toMidi(); 
-    const targetNote = Tone.Frequency(note).toMidi();
-    const interval = targetNote - rootNote;
-    
-    const buffer = this.buffers.get('C4'); // Get the root buffer
-    if (!buffer) return;
-
-    let voice = this.voicePool.find(v => !v.isActive);
-    if (!voice) {
-      // Voice stealing logic: find the voice with the lowest lastUsed timestamp
-      voice = this.voicePool.reduce((oldest, current) => {
-        return current.lastUsed < oldest.lastUsed ? current : oldest;
-      }, this.voicePool[0]);
-
-      voice.env.triggerRelease(Tone.immediate());
-      voice.player.stop();
-    }
-
-    voice.player.buffer = buffer;
-
-    // Trim the sample to loop only the steady sustain phase (20% to 80%)
-    const loopStart = buffer.duration * 0.2;
-    const loopEnd = buffer.duration * 0.8;
-    if (loopEnd > loopStart) {
-      voice.player.loopStart = loopStart;
-      voice.player.loopEnd = loopEnd;
-    }
-
-    voice.player.playbackRate = Math.pow(2, interval / 12); // Varispeed pitch shift
-    
-    voice.isActive = true;
-    voice.currentNote = note;
-    voice.lastUsed = Date.now();
-    
-    voice.player.start();
-    voice.env.triggerAttack(Tone.immediate(), velocity);
-  }
-
-  triggerRelease(note) {
-    const voice = this.voicePool.find(v => v.isActive && v.currentNote === note);
-    if (!voice) return;
-    
-    voice.env.triggerRelease(Tone.immediate());
-    
-    // Flag isActive = false after release tail time
-    setTimeout(() => {
-      if (voice.currentNote === note) {
-        voice.isActive = false;
-        voice.currentNote = null;
-      }
-    }, (this.envelope.release + 0.1) * 1000);
-  }
-
-  // Allow dynamic ADSR updates
-  set(params) {
-    if (params.envelope) {
-      this.envelope = { ...this.envelope, ...params.envelope };
-    }
-  }
-
-  disconnect() {
-    this.output.disconnect();
-  }
-
-  dispose() {
-    this.voicePool.forEach(voice => {
-      voice.player.dispose();
-      voice.env.dispose();
-    });
-    this.voicePool = [];
-    this.buffers.dispose();
-    this.output.dispose();
-  }
-}
->>>>>>> 01523582198bf0ef15b3a30740f21ac6d2863ee9
 
 class AudioEngine {
   constructor() {
@@ -142,7 +42,6 @@ class AudioEngine {
     this.initPromise = null;
   }
 
-<<<<<<< HEAD
   async init(sabBuffer) {
     if (sabBuffer) {
       this.sabBuffer = sabBuffer;
@@ -204,42 +103,6 @@ class AudioEngine {
       } catch (err) {
         console.error('[AudioEngine] Worklet initialization failed:', err);
       }
-=======
-  async init() {
-    if (this.isInitialized || this.initPromise) return this.initPromise;
-
-    this.initPromise = (async () => {
-      // Only set a new context if one isn't already running
-      if (!Tone.context || Tone.context.state !== 'running') {
-        const optimizedContext = new Tone.Context({
-          latencyHint: 'interactive',
-          lookAhead: 0, // Force absolute zero scheduling delay
-          updateInterval: 0.01 
-        });
-        Tone.setContext(optimizedContext);
-      }
-
-      // Start audio (will resolve immediately if user gesture exists, or queue if not)
-      try {
-        await Tone.start();
-      } catch (e) {
-        console.warn("Tone.start() waiting for interaction...");
-      }
-
-      this.panVol = new Tone.PanVol(0, 0); 
-      this.splitter = new Tone.Split(2);
-      this.meterL = new Tone.Meter();
-      this.meterR = new Tone.Meter();
-      this.reverb = new Tone.Reverb({ decay: 2.5, preDelay: 0.01, wet: 0 });
-      await this.reverb.generate(); 
-      this.internalTrim = new Tone.Gain(1).connect(this.panVol);
-      this.panVol.connect(this.splitter);
-      this.splitter.connect(this.meterL, 0, 0);
-      this.splitter.connect(this.meterR, 1, 0);
-      this.panVol.chain(this.reverb, Tone.Destination);
-      this.sampler = new Tone.Sampler().connect(this.internalTrim);
-
->>>>>>> 01523582198bf0ef15b3a30740f21ac6d2863ee9
       this.isInitialized = true;
     })();
     return this.initPromise;
@@ -405,123 +268,9 @@ class AudioEngine {
     }
   }
 
-<<<<<<< HEAD
   /**
    * Send ADSR parameters to the worklet
    */
-=======
-  noteOn(note, velocity = 1) {
-    if (!this.sampler || !this.isInitialized || this.isInstrumentLoading) return;
-    
-    let midiNote;
-    if (typeof note === 'number') {
-      midiNote = note;
-    } else {
-      midiNote = Tone.Frequency(note).toMidi();
-    }
-    latencyProfiler.markAudioTrigger(midiNote);
-
-    if (this.sampler instanceof Tone.Sampler) {
-      this.sampler.triggerAttack(note, Tone.immediate(), velocity);
-    } else if (this.sampler instanceof LoopedSampler) {
-      this.sampler.triggerAttack(note, velocity);
-    } else if (typeof this.sampler.start === 'function') {
-      // smplr uses 0-127
-      this.sampler.start({
-        note: note,
-        velocity: velocity * 127
-      });
-    }
-  }
-
-  releaseNote(note) {
-    if (!this.sampler || !this.isInitialized || this.isInstrumentLoading) return;
-    
-    // If the instrument is a LoopedSampler
-    if (this.sampler instanceof LoopedSampler) {
-      this.sampler.triggerRelease(note);
-    }
-    // If the instrument is a smplr Soundfont
-    else if (typeof this.sampler.stop === 'function') { 
-        // Pass the primitive note directly. Do NOT use { note: note }
-        this.sampler.stop(note); 
-    } 
-    // If the instrument is a Tone.Sampler
-    else if (typeof this.sampler.triggerRelease === 'function') {
-        this.sampler.triggerRelease(note, Tone.immediate());
-    }
-  }
-
-  triggerAttack(notes, velocity = 1) {
-    if (!this.sampler || !this.isInitialized || this.isInstrumentLoading) return;
-    notes.forEach(noteNum => {
-      const noteStr = Tone.Frequency(noteNum, "midi").toNote();
-      this.noteOn(noteStr, velocity);
-    });
-  }
-
-  triggerRelease(notes) {
-    if (!this.sampler || !this.isInitialized || this.isInstrumentLoading) return;
-    notes.forEach(noteNum => {
-      const noteStr = Tone.Frequency(noteNum, "midi").toNote();
-      this.releaseNote(noteStr);
-    });
-  }
-
-  releaseAll() {
-    if (!this.sampler || !this.isInitialized) return;
-    if (this.sampler instanceof Tone.Sampler) {
-      this.sampler.releaseAll();
-    } else if (this.sampler instanceof LoopedSampler) {
-      this.sampler.voicePool.forEach(voice => {
-        if (voice.isActive && voice.currentNote) {
-          this.sampler.triggerRelease(voice.currentNote);
-        }
-      });
-    } else if (typeof this.sampler.stop === 'function') {
-      this.sampler.stop();
-    }
-  }
-
-  setVolume(db) {
-    if (!this.panVol) return;
-    this.panVol.volume.value = db; // ranges from -60 to 0
-    if (db <= -60) {
-      this.panVol.volume.value = -Infinity;
-    }
-  }
-
-  setPan(pan) {
-    if (!this.panVol) return;
-    this.panVol.pan.value = pan;
-  }
-
-  setReverbWet(wet) {
-    if (!this.reverb) return;
-    this.reverb.wet.value = wet;
-  }
-
-  getMeterLevels() {
-    if (!this.meterL || !this.meterR) return { l: -100, r: -100 };
-    const l = this.meterL.getValue();
-    const r = this.meterR.getValue();
-    return {
-      l: typeof l === 'number' ? l : l[0],
-      r: typeof r === 'number' ? r : r[0]
-    };
-  }
-
-  setTuningOffset(cents) {
-    if (!this.sampler) return;
-    const samplerAny = this.sampler;
-    if (samplerAny._detune) {
-       samplerAny._detune.value = cents;
-    } else if (samplerAny.detune) {
-       samplerAny.detune.value = cents;
-    }
-  }
-
->>>>>>> 01523582198bf0ef15b3a30740f21ac6d2863ee9
   setAttack(attack) {
     if (this.nativeWorklet) {
       this.nativeWorklet.port.postMessage({ type: 'ADSR', attack });
