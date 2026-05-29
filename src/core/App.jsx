@@ -11,7 +11,10 @@ import MidiTransposer from '../plugins/midi-transposer';
 import { MasterRompler } from './rompler/MasterRompler';
 import { motion, AnimatePresence } from 'framer-motion';
 import { latencyProfiler } from './utils/latencyProfiler';
+<<<<<<< HEAD
 import { audioEngine } from './rompler/engine';
+=======
+>>>>>>> 01523582198bf0ef15b3a30740f21ac6d2863ee9
 import { MidiRingBuffer } from './utils/RingBuffer';
 
 const midiRingBuffer = new MidiRingBuffer();
@@ -71,12 +74,23 @@ function App() {
     const [status, note, velocity] = midiData;
     const command = status & 0xf0;
 
+<<<<<<< HEAD
     // DIRECT FAST-PATH TO AUDIO WORKLET VIA SAB
     if (midiRingBuffer) {
       midiRingBuffer.push(status, note, velocity);
     }
 
     // Throttled UI Render
+=======
+    // 1. SYNCHRONOUS AUDIO EXECUTION (Zero-Wait)
+    if (command === 0x90 && velocity > 0) {
+      if (window.playNoteOn) window.playNoteOn(note, velocity);
+    } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+      if (window.playNoteOff) window.playNoteOff(note);
+    }
+
+    // 2. Throttled UI Render (Deferred)
+>>>>>>> 01523582198bf0ef15b3a30740f21ac6d2863ee9
     if (command === 0x90 && velocity > 0) {
       if (!activeNotesRef.current.some((n) => n.note === note)) {
         activeNotesRef.current.push({ note, velocity, time: Date.now() });

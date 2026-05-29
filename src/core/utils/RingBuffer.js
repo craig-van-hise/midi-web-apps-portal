@@ -1,5 +1,6 @@
 export class MidiRingBuffer {
   constructor() {
+<<<<<<< HEAD
     if (typeof SharedArrayBuffer === 'undefined') {
       const errorMsg = "FATAL ERROR: SharedArrayBuffer is undefined. You MUST kill and restart your terminal Vite Dev Server for the COOP/COEP security headers to apply.";
       alert(errorMsg);
@@ -9,6 +10,17 @@ export class MidiRingBuffer {
     const buffer = new SharedArrayBuffer(4096);
     this.array = new Int32Array(buffer);
     
+=======
+    // 1024 elements * 4 bytes per Int32 = 4096 bytes
+    const buffer = typeof SharedArrayBuffer !== 'undefined' 
+      ? new SharedArrayBuffer(4096) 
+      : new ArrayBuffer(4096);
+    
+    this.array = new Int32Array(buffer);
+    
+    // Index 0: write_pointer (starts at absolute index 2)
+    // Index 1: read_pointer (starts at absolute index 2)
+>>>>>>> 01523582198bf0ef15b3a30740f21ac6d2863ee9
     Atomics.store(this.array, 0, 2);
     Atomics.store(this.array, 1, 2);
   }

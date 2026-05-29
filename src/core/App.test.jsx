@@ -183,6 +183,26 @@ describe('App Portal Monolith Harness Tests', () => {
 
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
+<<<<<<< HEAD
+=======
+    });
+
+    const playNoteOnSpy = vi.fn();
+    let currentPlayNoteOn = null;
+    Object.defineProperty(window, 'playNoteOn', {
+      get() {
+        return (note, velocity) => {
+          playNoteOnSpy(note, velocity);
+          if (typeof currentPlayNoteOn === 'function') {
+            currentPlayNoteOn(note, velocity);
+          }
+        };
+      },
+      set(val) {
+        currentPlayNoteOn = val;
+      },
+      configurable: true
+>>>>>>> 01523582198bf0ef15b3a30740f21ac6d2863ee9
     });
 
     if (setActiveNotesSpy) {
@@ -216,6 +236,15 @@ describe('App Portal Monolith Harness Tests', () => {
     act(() => {
       vi.runOnlyPendingTimers();
     });
+<<<<<<< HEAD
+=======
+
+    expect(playNoteOnSpy).toHaveBeenCalledTimes(4);
+    expect(playNoteOnSpy).toHaveBeenNthCalledWith(1, 60, 100);
+    expect(playNoteOnSpy).toHaveBeenNthCalledWith(2, 61, 100);
+    expect(playNoteOnSpy).toHaveBeenNthCalledWith(3, 62, 100);
+    expect(playNoteOnSpy).toHaveBeenNthCalledWith(4, 63, 100);
+>>>>>>> 01523582198bf0ef15b3a30740f21ac6d2863ee9
 
     // In the new AudioWorklet architecture, audio is NOT triggered synchronously
     // via window.playNoteOn. Instead, data is pushed into the SAB ring buffer and
