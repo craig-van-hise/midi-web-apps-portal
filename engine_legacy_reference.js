@@ -124,12 +124,13 @@ class AudioEngine {
     this.splitter = new Tone.Split(2);
     this.meterL = new Tone.Meter();
     this.meterR = new Tone.Meter();
+    this.reverb = new Tone.Reverb({
+      decay: 2.5,
+      preDelay: 0.01,
+      wet: 0,
+    });
     
-    // Low-Latency Freeverb instead of Tone.Reverb
-    this.reverb = new Tone.Freeverb({ roomSize: 0.7, dampening: 4000 });
-    this.reverb.wet.value = 1;
-
-    this.reverbSend = new Tone.Gain(0.1);
+    await this.reverb.generate(); // Ensure impulse response is created
 
     this.internalTrim = new Tone.Gain(1);
     this.internalTrim.connect(this.panVol);
@@ -137,11 +138,7 @@ class AudioEngine {
     this.panVol.connect(this.splitter);
     this.splitter.connect(this.meterL, 0, 0);
     this.splitter.connect(this.meterR, 1, 0);
-    
-    this.panVol.connect(Tone.Destination); // Dry Path
-    this.panVol.connect(this.reverbSend);  // Post-Pan Aux Send
-    this.reverbSend.connect(this.reverb);
-    this.reverb.connect(Tone.Destination); // Wet Return
+    this.panVol.chain(this.reverb, Tone.Destination);
 
     // Create a dummy sampler just to have the chain setup
     this.sampler = new Tone.Sampler().connect(this.internalTrim);
@@ -201,7 +198,6 @@ class AudioEngine {
           this.sampler = new Tone.Sampler({
             urls: sampleMap,
             baseUrl: baseUrl,
-            release: 1.0,
             onload: () => {
               if (this.sampler && this.internalTrim) {
                 this.sampler.connect(this.internalTrim);
@@ -243,30 +239,34 @@ class AudioEngine {
     }
     latencyProfiler.markAudioTrigger(midiNote);
 
-    const toneNote = typeof note === 'number' ? Tone.Frequency(note, "midi").toNote() : note;
-    const smplrNote = typeof note === 'number' ? note : Tone.Frequency(note).toMidi();
-
     if (this.sampler instanceof Tone.Sampler) {
-      this.sampler.triggerAttack(toneNote, Tone.now(), velocity);
+      this.sampler.triggerAttack(note, Tone.now(), velocity);
     } else if (this.sampler instanceof LoopedSampler) {
-      this.sampler.triggerAttack(toneNote, velocity);
+      this.sampler.triggerAttack(note, velocity);
     } else if (typeof this.sampler.start === 'function') {
-      this.sampler.start({ note: smplrNote, velocity: velocity * 127 });
+      // smplr uses 0-127
+      this.sampler.start({
+        note: note,
+        velocity: velocity * 127
+      });
     }
   }
 
   releaseNote(note) {
     if (!this.sampler || !this.isInitialized || this.isInstrumentLoading) return;
-
-    const toneNote = typeof note === 'number' ? Tone.Frequency(note, "midi").toNote() : note;
-    const smplrNote = typeof note === 'number' ? note : Tone.Frequency(note).toMidi();
     
-    if (this.sampler instanceof Tone.Sampler) {
-      this.sampler.triggerRelease(toneNote, Tone.now());
-    } else if (this.sampler instanceof LoopedSampler) {
-      this.sampler.triggerRelease(toneNote);
-    } else if (typeof this.sampler.stop === 'function') {
-      this.sampler.stop(smplrNote);
+    // If the instrument is a LoopedSampler
+    if (this.sampler instanceof LoopedSampler) {
+      this.sampler.triggerRelease(note);
+    }
+    // If the instrument is a smplr Soundfont
+    else if (typeof this.sampler.stop === 'function') { 
+        // Pass the primitive note directly. Do NOT use { note: note }
+        this.sampler.stop(note); 
+    } 
+    // If the instrument is a Tone.Sampler
+    else if (typeof this.sampler.triggerRelease === 'function') {
+        this.sampler.triggerRelease(note, Tone.now());
     }
   }
 
@@ -311,8 +311,8 @@ class AudioEngine {
   }
 
   setReverbWet(wet) {
-    if (!this.reverbSend) return;
-    this.reverbSend.gain.value = wet;
+    if (!this.reverb) return;
+    this.reverb.wet.value = wet;
   }
 
   getMeterLevels() {
@@ -392,7 +392,7 @@ class AudioEngine {
              'C3': 'C3.mp3', 'C4': 'C4.mp3', 'C5': 'C5.mp3',
              'D#2': 'Ds2.mp3', 'D#3': 'Ds3.mp3', 'D#4': 'Ds4.mp3',
              'F#2': 'Fs2.mp3', 'F#3': 'Fs3.mp3', 'F#4': 'Fs4.mp3',
-         };
+        };
     }
 
     if (instrument === 'bass-electric') {

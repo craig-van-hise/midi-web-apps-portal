@@ -1,20 +1,21 @@
 # VV | WebApps Portal
 
-A unified browser-based workspace for real-time MIDI processing plugins and Tone.js rompler synthesis.
+A unified browser-based workspace for real-time MIDI processing plugins and native low-latency AudioWorklet synthesis.
 
 ## Core Entrypoints
 - Host Application: [App.jsx](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/src/core/App.jsx)
-- Audio Rompler Engine: [MasterRompler.jsx](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/src/core/rompler/MasterRompler.jsx)
+- Audio Rompler Engine: [engine.js](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/src/core/rompler/engine.js) (Native AudioContext & voice router)
+- Custom DSP Processor: [RomplerWorklet.js](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/public/RomplerWorklet.js)
 - Application Registry: [appRegistry.js](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/src/config/appRegistry.js)
+- Shared Memory Ring Buffer: [RingBuffer.js](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/src/core/utils/RingBuffer.js)
 
 ## Active Modules & Plugins
 - [Chord Notator](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/src/plugins/chord-notator)
 - [Pitch Class Matrix](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/src/plugins/pitch-class-matrix)
 - [MIDI Monitor](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/src/plugins/monitor)
 - [MIDI Dynamics](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/src/plugins/dynamics)
-- [Note Range Filter](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/src/plugins/note-range-filter)
 - [MIDI Transposer](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/src/plugins/midi-transposer)
 
 ## Technical Reference
-- Architecture details and recent changes: [PROJECT_STATE.md](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/PROJECT_STATE.md)
+- Architecture details, recent changes, and regressions: [PROJECT_STATE.md](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/PROJECT_STATE.md)
 - User Documentation & Installation: [README.md](file:///Users/vv2024/Documents/Repos%20-%20vv2024/MIDI/WebApps/midi-web-apps-portal/README.md)

@@ -59,10 +59,20 @@ vi.mock('tone', () => {
         this.getValue = vi.fn(() => 0);
       }
     },
-    Reverb: class {
-      constructor() {
+    Freeverb: class {
+      constructor(options) {
         this.wet = { value: 0 };
-        this.generate = vi.fn().mockResolvedValue(undefined);
+        this.roomSize = options?.roomSize ?? 0.7;
+        this.dampening = options?.dampening ?? 4000;
+        this.connect = vi.fn().mockReturnThis();
+      }
+    },
+    Sampler: class {
+      constructor() {
+        this.connect = vi.fn().mockReturnThis();
+        this.triggerAttack = vi.fn();
+        this.triggerRelease = vi.fn();
+        this.releaseAll = vi.fn();
       }
     },
     Destination: {
@@ -84,80 +94,7 @@ vi.mock('tone', () => {
   };
 });
 
-// Mock AudioWorkletNode and AudioContext globally for JSDOM
-globalThis.AudioWorkletNode = class MockAudioWorkletNode {
-  constructor() {
-    this.port = {
-      postMessage: vi.fn(),
-      onmessage: null
-    };
-    this.connect = vi.fn();
-    this.disconnect = vi.fn();
-  }
-};
-
-globalThis.AudioNode = class MockAudioNode {
-  constructor() {
-    this.connect = vi.fn();
-    this.disconnect = vi.fn();
-  }
-};
-
-globalThis.AudioContext = class MockAudioContext {
-  constructor(options) {
-    this.latencyHint = options?.latencyHint || 'interactive';
-    this.sampleRate = 44100;
-    this.state = 'suspended';
-    this.destination = new globalThis.AudioNode();
-    this.audioWorklet = {
-      addModule: vi.fn().mockResolvedValue(undefined)
-    };
-    this.decodeAudioData = vi.fn().mockResolvedValue({
-      getChannelData: () => new Float32Array(1000)
-    });
-  }
-  resume() {
-    this.state = 'running';
-    return Promise.resolve();
-  }
-  createGain() {
-    return {
-      gain: { value: 1.0 },
-      connect: vi.fn()
-    };
-  }
-  createStereoPanner() {
-    return {
-      pan: { value: 0 },
-      connect: vi.fn()
-    };
-  }
-  createConvolver() {
-    return {
-      buffer: null,
-      connect: vi.fn()
-    };
-  }
-  createAnalyser() {
-    return {
-      fftSize: 2048,
-      getFloatTimeDomainData: vi.fn(),
-      connect: vi.fn()
-    };
-  }
-  createChannelSplitter(channels) {
-    return {
-      connect: vi.fn()
-    };
-  }
-  createBuffer(channels, length, sampleRate) {
-    return {
-      getChannelData: (ch) => new Float32Array(length)
-    };
-  }
-};
-
-describe('AudioEngine Low Latency Initialization Tests', () => {
+describe('AudioEngine Low Latency Tone.js Reconstruct Tests', () => {
   let freshAudioEngine;
 
   beforeEach(async () => {
@@ -171,80 +108,57 @@ describe('AudioEngine Low Latency Initialization Tests', () => {
     }
   });
 
-  it('configures native AudioContext with interactive latencyHint upon init', async () => {
+  it('configures Tone.js with low latency and lookAhead upon init', async () => {
     freshAudioEngine.isInitialized = false;
-    freshAudioEngine.initPromise = null;
-
     await freshAudioEngine.init();
 
-    expect(freshAudioEngine.ctx).toBeDefined();
-    expect(freshAudioEngine.ctx.latencyHint).toBe('interactive');
-    expect(freshAudioEngine.ctx.state).toBe('running');
+    expect(freshAudioEngine.isInitialized).toBe(true);
+    expect(Tone.context.lookAhead).toBe(0.002);
   });
 
-  it('creates and connects native Gain, StereoPanner, and Analyser nodes', async () => {
+  it('creates and connects Tone nodes and instantiates Freeverb', async () => {
     freshAudioEngine.isInitialized = false;
-    freshAudioEngine.initPromise = null;
-
     await freshAudioEngine.init();
 
-    expect(freshAudioEngine.internalTrim).toBeDefined();
-    expect(freshAudioEngine.panner).toBeDefined();
-    expect(freshAudioEngine.volumeNode).toBeDefined();
-    expect(freshAudioEngine.analyserL).toBeDefined();
-    expect(freshAudioEngine.analyserR).toBeDefined();
+    expect(freshAudioEngine.panVol).toBeDefined();
+    expect(freshAudioEngine.splitter).toBeDefined();
+    expect(freshAudioEngine.meterL).toBeDefined();
+    expect(freshAudioEngine.meterR).toBeDefined();
+    expect(freshAudioEngine.reverb).toBeDefined();
+    expect(freshAudioEngine.reverb).toBeInstanceOf(Tone.Freeverb);
+    expect(freshAudioEngine.reverb.roomSize).toBe(0.7);
+    expect(freshAudioEngine.reverb.dampening).toBe(4000);
+    expect(freshAudioEngine.reverbSend).toBeDefined();
+    expect(freshAudioEngine.reverbSend).toBeInstanceOf(Tone.Gain);
   });
 
-
-
-  it('no longer exposes noteOn, releaseNote, triggerAttack, or triggerRelease methods', async () => {
+  it('updates reverbSend gain value when setReverbWet is called', async () => {
     freshAudioEngine.isInitialized = false;
-    freshAudioEngine.initPromise = null;
-
-    expect(freshAudioEngine.noteOn).toBeUndefined();
-    expect(freshAudioEngine.releaseNote).toBeUndefined();
-    expect(freshAudioEngine.triggerAttack).toBeUndefined();
-    expect(freshAudioEngine.triggerRelease).toBeUndefined();
+    await freshAudioEngine.init();
+    
+    freshAudioEngine.setReverbWet(0.5);
+    expect(freshAudioEngine.reverbSend.gain.value).toBe(0.5);
   });
 
-  it('sends ADSR parameters to worklet via postMessage', async () => {
-    freshAudioEngine.isInitialized = false;
-    freshAudioEngine.initPromise = null;
-    try {
-      await freshAudioEngine.init();
-    } catch (err) {
-      // Ignore
-    }
-
-    freshAudioEngine.setAttack(0.05);
-    freshAudioEngine.setDecay(0.2);
-    freshAudioEngine.setSustain(0.8);
-    freshAudioEngine.setRelease(0.5);
-
-    if (freshAudioEngine.nativeWorklet) {
-      const calls = freshAudioEngine.nativeWorklet.port.postMessage.mock.calls;
-      const adsrCalls = calls.filter(c => c[0]?.type === 'ADSR');
-      expect(adsrCalls.length).toBeGreaterThanOrEqual(4);
-    }
+  it('exposes noteOn, releaseNote, triggerAttack, and triggerRelease methods directly', async () => {
+    expect(freshAudioEngine.noteOn).toBeDefined();
+    expect(freshAudioEngine.releaseNote).toBeDefined();
+    expect(freshAudioEngine.triggerAttack).toBeDefined();
+    expect(freshAudioEngine.triggerRelease).toBeDefined();
   });
 
-  it('sends PANIC message to worklet on releaseAll()', async () => {
-    freshAudioEngine.isInitialized = false;
-    freshAudioEngine.initPromise = null;
+  it('typecasts note integers to strings (e.g. C4) for Tone.Sampler in noteOn and releaseNote', async () => {
+    await freshAudioEngine.init();
+    
+    // Tone.Sampler is the default sampler in init, or we can mock/stub
+    // Let's spy on triggerAttack and triggerRelease of the mock Tone.Sampler instance
+    const triggerAttackSpy = vi.spyOn(freshAudioEngine.sampler, 'triggerAttack');
+    const triggerReleaseSpy = vi.spyOn(freshAudioEngine.sampler, 'triggerRelease');
 
-    try {
-      await freshAudioEngine.init();
-    } catch (err) {
-      // Ignore
-    }
+    freshAudioEngine.noteOn(60, 0.8);
+    expect(triggerAttackSpy).toHaveBeenCalledWith('C4', expect.any(Number), 0.8);
 
-    freshAudioEngine.releaseAll();
-
-    if (freshAudioEngine.nativeWorklet) {
-      const calls = freshAudioEngine.nativeWorklet.port.postMessage.mock.calls;
-      const panicCalls = calls.filter(c => c[0]?.type === 'PANIC');
-      expect(panicCalls.length).toBe(1);
-    }
+    freshAudioEngine.releaseNote(60);
+    expect(triggerReleaseSpy).toHaveBeenCalledWith('C4', expect.any(Number));
   });
-
 });

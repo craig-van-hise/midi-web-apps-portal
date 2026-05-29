@@ -9,7 +9,7 @@ import { cn } from './utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import './rompler.css';
 
-export function MasterRompler({ isOpen, onToggle, sabBuffer }) {
+export function MasterRompler({ isOpen, onToggle }) {
   const [power, setPower] = useState(true);
   const [instrument, setInstrument] = usePersistentState('rompler_instrument', 'piano');
   const [isLoading, setIsLoading] = useState(false);
@@ -17,7 +17,7 @@ export function MasterRompler({ isOpen, onToggle, sabBuffer }) {
 
   const [volume, setVolume] = usePersistentState('rompler_volume', -12);
   const [pan, setPan] = usePersistentState('rompler_pan', 0);
-  const [reverbWet, setReverbWet] = usePersistentState('rompler_reverb_wet', 0.2);
+  const [reverbWet, setReverbWet] = usePersistentState('rompler_reverb_wet', 0.1);
   const [tuningOffset, setTuningOffset] = usePersistentState('rompler_tuning_offset', 0);
   const [midiChannel, setMidiChannel] = usePersistentState('rompler_midi_channel', 1);
 
@@ -34,7 +34,7 @@ export function MasterRompler({ isOpen, onToggle, sabBuffer }) {
     if (power) {
       const start = async () => {
         setIsLoading(true);
-        await audioEngine.init(sabBuffer);
+        await audioEngine.init();
         await audioEngine.loadInstrument(instrument);
         audioEngine.setVolume(volume);
         audioEngine.setPan(pan);
@@ -99,7 +99,7 @@ export function MasterRompler({ isOpen, onToggle, sabBuffer }) {
     const initTrap = async () => {
       if (!audioEngine.isInitialized && power) {
         try {
-          await audioEngine.init(sabBuffer);
+          await audioEngine.init();
           setAudioSuspendedWarning(false);
         } catch (err) {
           console.error('Audio initialization failed:', err);

@@ -3,41 +3,67 @@
 
 /Users/vv2024/Documents/Repos - vv2024/MIDI/WebApps/midi-web-apps-portal
 ├── # Prompts
-|  ├── # 0.md
-|  ├── # 1.md
-|  ├── # 10.md
-|  ├── # 11.md
-|  ├── # 12.md
-|  ├── # 13.md
-|  ├── # 14.md
-|  ├── # 15.md
-|  ├── # 16.md
-|  ├── # 17.md
-|  ├── # 18.md
-|  ├── # 19.md
-|  ├── # 2.md
-|  ├── # 20.md
-|  ├── # 22.md
-|  ├── # 23.md
-|  ├── # 24.md
-|  ├── # 25.md
-|  ├── # 26.md
-|  ├── # 27.md
-|  ├── # 28.md
-|  ├── # 29.md
-|  ├── # 3.md
-|  ├── # 30.md
-|  ├── # 31.md
-|  ├── # 32.md
-|  ├── # 33.md
-|  ├── # 4.md
-|  ├── # 5.md
-|  ├── # 6.md
-|  ├── # 7.md
-|  ├── # 8.md
-|  └── # 9.md
+|  ├── # 36.md
+|  ├── # 37.md
+|  ├── # 38.md
+|  ├── # 47.md
+|  ├── # 48.md
+|  ├── # 49.md
+|  ├── # 50.md
+|  ├── # 51.md
+|  ├── # 52.md
+|  ├── # 53.md
+|  ├── # 54.md
+|  └── xOlder
+|     ├── # 0.md
+|     ├── # 1.md
+|     ├── # 10.md
+|     ├── # 11.md
+|     ├── # 12.md
+|     ├── # 13.md
+|     ├── # 14.md
+|     ├── # 15.md
+|     ├── # 16.md
+|     ├── # 17.md
+|     ├── # 18.md
+|     ├── # 19.md
+|     ├── # 2.md
+|     ├── # 20.md
+|     ├── # 22.md
+|     ├── # 23.md
+|     ├── # 24.md
+|     ├── # 25.md
+|     ├── # 26.md
+|     ├── # 27.md
+|     ├── # 28.md
+|     ├── # 29.md
+|     ├── # 3.md
+|     ├── # 30.md
+|     ├── # 31.md
+|     ├── # 32.md
+|     ├── # 33.md
+|     ├── # 34.md
+|     ├── # 35md
+|     ├── # 36.md
+|     ├── # 37.md
+|     ├── # 38.md
+|     ├── # 39.md
+|     ├── # 4.md
+|     ├── # 40.md
+|     ├── # 41.md
+|     ├── # 42.md
+|     ├── # 43.md
+|     ├── # 44.md
+|     ├── # 45.md
+|     ├── # 46.md
+|     ├── # 5.md
+|     ├── # 6.md
+|     ├── # 7.md
+|     ├── # 8.md
+|     └── # 9.md
 ├── 2026-05-25_REPO_REPORT.md
 ├── DropFolder
+├── FAILURE_REPORT_LATENCY.md
 ├── GUIDE_TO_LOW_LATENCY.md
 ├── PROJECT_CONTEXT_BUNDLE.md
 ├── PROJECT_STATE.md
@@ -51,6 +77,7 @@
 ├── project_tree.txt
 ├── public
 |  ├── PCS_LUT.dat
+|  ├── RomplerWorklet.js
 |  ├── favicon.svg
 |  ├── fonts
 |  |  └── Bravura.woff2
@@ -77,6 +104,8 @@
 |  |  |  ├── usePersistentState.js
 |  |  |  └── utils.js
 |  |  └── utils
+|  |     ├── RingBuffer.js
+|  |     ├── RingBuffer.test.js
 |  |     ├── latencyProfiler.js
 |  |     └── latencyProfiler.test.js
 |  ├── index.css
@@ -144,12 +173,6 @@
 |  |  ├── monitor
 |  |  |  ├── index.test.tsx
 |  |  |  └── index.tsx
-|  |  ├── note-range-filter
-|  |  |  ├── components
-|  |  |  |  └── MidiNoteRangeFilter.tsx
-|  |  |  ├── index.tsx
-|  |  |  └── lib
-|  |  |     └── midiProcessing.ts
 |  |  └── pitch-class-matrix
 |  |     ├── components
 |  |     |  └── 88-key.tsx
@@ -161,7 +184,7 @@
 |  └── utils
 └── vite.config.js
 
-directory: 994 file: 8210
+directory: 992 file: 8235
 
 ignored: directory (144)
 
@@ -172,6 +195,13 @@ ignored: directory (144)
 
 # Project State: VV | WebApps Portal
 
+> [!WARNING]
+> **Audio Engine Status: Precarious Position**
+> The audio engine is currently in a highly sensitive and precarious state. Multiple structural rewrites to lower latency (bypassing Tone.js in favor of a pure Web Audio API context and a custom lock-free `SharedArrayBuffer` / `AudioWorklet` pipeline) have introduced several regressions that are currently unresolved:
+> 1. **Gain Staging / normalization regression**: Removing Tone.js Samplers ruined auto-normalization across different instrument sample maps. Some instruments (Electric Piano, Celeste, Harp) are extremely quiet compared to others.
+> 2. **Audio Pops & Clicks**: The custom DSP voice-stealing algorithm lacks zero-crossing/crossfade logic, resulting in pops on repeated notes.
+> 3. **Eradicated Reverb**: The convolution reverb and impulse response node were completely bypassed and stripped from the graph in an attempt to eradicate a perceived latency floor, rendering the output entirely dry.
+
 ## 1. Architecture & Directory Tree
 ```text
 midi-web-apps-portal/
@@ -179,6 +209,7 @@ midi-web-apps-portal/
 │   ├── fonts/
 │   │   └── Bravura.woff2
 │   ├── PCS_LUT.dat
+│   ├── RomplerWorklet.js      # Custom AudioWorklet DSP processor
 │   ├── favicon.svg
 │   └── icons.svg
 ├── src/
@@ -191,43 +222,35 @@ midi-web-apps-portal/
 │   │   └── appRegistry.test.js
 │   ├── core/
 │   │   ├── rompler/
+│   │   │   ├── Knob.jsx
 │   │   │   ├── MasterRompler.css
-│   │   │   └── MasterRompler.jsx
+│   │   │   ├── MasterRompler.jsx
+│   │   │   ├── VUMeter.jsx
+│   │   │   ├── engine.js          # Pure Native Web Audio Engine (Tone.js bypassed)
+│   │   │   ├── engine.test.js
+│   │   │   ├── rompler.css
+│   │   │   ├── usePersistentState.js
+│   │   │   └── utils.js
 │   │   ├── utils/
+│   │   │   ├── RingBuffer.js      # SAB lock-free ring buffer
+│   │   │   ├── RingBuffer.test.js
 │   │   │   ├── latencyProfiler.js
 │   │   │   └── latencyProfiler.test.js
 │   │   ├── App.css
 │   │   ├── App.jsx
 │   │   └── App.test.jsx
 │   ├── plugins/
+│   │   ├── DummyPlugin.jsx
+│   │   ├── DummyPlugin.test.jsx
 │   │   ├── chord-notator/
 │   │   ├── dynamics/
-│   │   ├── midi-transposer/
-│   │   │   ├── components/
-│   │   │   │   ├── ui/
-│   │   │   │   ├── KeySplitKeyboard.jsx
-│   │   │   │   ├── NoteRangeFilterKeyboard.jsx
-│   │   │   │   ├── TransposeKeyboard88.jsx
-│   │   │   │   └── keyboardMap.js
-│   │   │   ├── hooks/
-│   │   │   │   └── useWebMidi.js
-│   │   │   ├── store/
-│   │   │   │   └── useMidiStore.js
-│   │   │   ├── index.jsx
-│   │   │   └── index.test.jsx
+│   │   ├── midi-transposer/       # Two-zone keyboard transposer & output filter
 │   │   ├── monitor/
-│   │   ├── note-range-filter/
-│   │   ├── pitch-class-matrix/
-│   │   ├── DummyPlugin.jsx
-│   │   └── DummyPlugin.test.jsx
+│   │   └── pitch-class-matrix/
 │   ├── index.css
 │   ├── main.jsx
 │   └── setupTests.js
-├── xCleanup/
-│   └── src/
-│       ├── hooks/
-│       ├── plugins/
-│       └── utils/
+├── xCleanup/                   # Backup folder for dead/decommissioned code
 ├── eslint.config.js
 ├── index.html
 ├── package.json
@@ -238,26 +261,25 @@ midi-web-apps-portal/
 ## 2. Tech Stack
 - **Core Framework**: React 19, Vite 8, ES6+ JavaScript
 - **Styling**: Tailwind CSS v4, Custom CSS variables, Framer Motion (via `motion`)
-- **Audio Engine**: Tone.js (via `tone`, `smplr`), custom sample-based Rompler
+- **Audio Engine**: Pure Web Audio API context with a custom `AudioWorklet` processor (`RomplerWorklet.js`) and a lock-free `SharedArrayBuffer` ring buffer for low-latency voice allocation. (Note: `tone` and `smplr` are in `package.json` but bypassed in `engine.js`).
 - **State Management**: React State & Context, Zustand
-- **Utility / Performance**: Lodash (`lodash/throttle`) for frame-rate limiting UI rendering
+- **Utility / Performance**: Lodash (`lodash/throttle`) for frame-rate limiting UI rendering, Custom RingBuffer for SAB IPC communication.
 - **Icons**: Lucide React
 - **Testing**: Vitest, React Testing Library
 
 ## 3. Current System Capabilities
-- **Audio Engine**: Unified sample-based Tone.js Rompler that plugins hook into. Supports polyphonic note generation and instrument switching without blocking.
+- **Audio Engine**: Pure Web Audio context driving a custom polyphonic 32-voice sampler inside an `AudioWorklet`. MIDI events are piped through a lock-free `SharedArrayBuffer` ring buffer directly from the main thread to avoid IPC and React batching latency.
 - **Tracking/MIDI Engine**: Global Web MIDI API manager routing hardware input directly down to active plugins using a ref-based `EventTarget` Event Bus, avoiding React batching issues and stuck notes.
 - **Visualizer & Processing Plugins**:
   - **Chord Notator**: Renders sheet music notation from live MIDI inputs in real-time.
   - **Pitch Class Matrix**: Maps and quantizes incoming MIDI notes to specific roots and scales.
   - **MIDI Monitor**: Logs live MIDI status messages, note numbers, velocities, and CC changes.
   - **MIDI Dynamics**: Multi-mode velocity curve adjustment with compression, expansion, and custom thresholds.
-  - **Note Range Filter**: Restricts, clips, or wraps incoming MIDI notes based on user-defined key limits.
   - **MIDI Transposer**: Splits keyboard ranges into interactive draggable zones (Play and Transpose) supporting polyphonic chord transpositions, customizable transpose hold sustain modes (Sustain Original, Immediate Cutoff, Retrigger), and range-limit filtering on outputs.
 - **UI State Logic**: Frame-rate limited state sync (~30fps / 32ms) separating instant synchronous audio triggers from asynchronous rendering cycles.
 
 ## 4. Recent Evolution
-Integrated the standalone MIDI Transposer application as a headless, decoupled module within the portal. Refactored components to clean JS/JSX structures, migrated store configurations to support portal prop hooks (`midiBus` and `onMidiOut`), and implemented local settings/information modals with dismissible close buttons. Verified all unit tests successfully via Vitest.
+We undertook an extensive low-latency sprint to bypass Tone.js, moving sample playback into a dedicated custom `AudioWorkletNode` (`RomplerWorklet.js`) with a lock-free `SharedArrayBuffer` pipeline. While this successfully removed the Tone.js context wrapper and established pure native routing, we encountered significant audio regressions (uneven gain staging, clicks and pops on repeated notes, and dry output due to the removal of the convolution reverb). Recent commits resolved merge conflicts in `App.jsx` and `engine.js` to stabilize this custom-built native audio architecture.
 
 
 ### FILE: README.md
@@ -272,7 +294,7 @@ Built to demonstrate advanced MIDI data manipulation and web audio integration, 
 ## 🚀 Features
 
 * **Global MIDI Routing:** The portal handles a single `navigator.requestMIDIAccess()` instance and pipes raw hardware data down to the active module instantly.
-* **Centralized Audio Engine:** Features a global, sample-based Tone.js Rompler drawer. Modules do not generate their own audio; they simply send processed MIDI data back up to the portal.
+* **Centralized Audio Engine:** Features a custom, low-latency AudioWorklet-based Rompler drawer running on a dedicated audio thread. Modules do not generate their own audio; they send processed MIDI events via a lock-free SharedArrayBuffer ring buffer. *(Note: Currently in a precarious state with regressions on gain staging, voice-stealing clicking, and reverb bypassed as a result of the latency-reduction sprint).*
 * **"Headless" Plugin Architecture:** Modules are strictly isolated in `src/plugins/`. They receive inputs and commands via standard React props, eliminating cross-origin headaches and redundant UI states.
 * **Unified Dashboard Interface:** A dark-mode, hardware-inspired aesthetic with a collapsible navigation sidebar and a global top control bar (Power, Panic, Info, Settings).
 * **Zero-Friction Context Switching:** Instantly swap between MIDI tools without losing your hardware input selection or your selected Rompler instrument patch.
@@ -298,21 +320,22 @@ The repository is strictly divided into the core host environment and isolated p
 
 ```text
 midi-web-apps-portal/
-├── public/                 # Global assets, LUTs, and digital fonts
+├── public/                 # Global assets, AudioWorklet (RomplerWorklet.js), and fonts
 ├── src/
 │   ├── config/             # App Registry and configurations
 │   │   └── appRegistry.js
 │   ├── core/               # THE PORTAL HOST
-│   │   ├── rompler/        # Tone.js Audio Engine & UI Drawer
-│   │   ├── utils/          # Host utilities (e.g. latency profiler)
+│   │   ├── rompler/        # Pure Native Web Audio Engine & UI Drawer
+│   │   │   ├── engine.js   # Native audio context & voice router
+│   │   │   └── ...
+│   │   ├── utils/          # Host utilities (RingBuffer.js, latencyProfiler.js)
 │   │   └── App.jsx         # Main Host Layout & State Controller
-    └── plugins/            # THE HEADLESS MODULES
-        ├── chord-notator/  # Renders sheet music notation
-        ├── dynamics/       # Velocity compressor/expander
-        ├── midi-transposer/ # Two-zone keyboard transposer & output filter
-        ├── monitor/        # MIDI log/event visualizer
-        ├── note-range-filter/ # Filters MIDI note ranges
-        └── pitch-class-matrix/ # Scale and root quantizer
+│   └── plugins/            # THE HEADLESS MODULES
+│       ├── chord-notator/  # Renders sheet music notation
+│       ├── dynamics/       # Velocity compressor/expander
+│       ├── midi-transposer/ # Two-zone keyboard transposer & output filter
+│       ├── monitor/        # MIDI log/event visualizer
+│       └── pitch-class-matrix/ # Scale and root quantizer
 ```
 
 ---

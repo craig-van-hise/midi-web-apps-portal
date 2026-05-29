@@ -12,9 +12,6 @@ import { MasterRompler } from './rompler/MasterRompler';
 import { motion, AnimatePresence } from 'framer-motion';
 import { latencyProfiler } from './utils/latencyProfiler';
 import { audioEngine } from './rompler/engine';
-import { MidiRingBuffer } from './utils/RingBuffer';
-
-const midiRingBuffer = new MidiRingBuffer();
 
 function AppIcon({ name, className }) {
   const IconComponent = Icons[name] || Icons.Music;
@@ -71,9 +68,11 @@ function App() {
     const [status, note, velocity] = midiData;
     const command = status & 0xf0;
 
-    // DIRECT FAST-PATH TO AUDIO WORKLET VIA SAB
-    if (midiRingBuffer) {
-      midiRingBuffer.push(status, note, velocity);
+    // Synchronously route to audio engine
+    if (command === 0x90 && velocity > 0) {
+      audioEngine.noteOn(note, velocity / 127);
+    } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+      audioEngine.releaseNote(note);
     }
 
     // Throttled UI Render
@@ -349,7 +348,6 @@ function App() {
           <MasterRompler
             isOpen={isDrawerOpen}
             onToggle={() => setIsDrawerOpen(!isDrawerOpen)}
-            sabBuffer={midiRingBuffer.array.buffer}
           />
         </main>
       </div>

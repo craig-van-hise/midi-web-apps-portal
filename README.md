@@ -8,7 +8,7 @@ Built to demonstrate advanced MIDI data manipulation and web audio integration, 
 ## 🚀 Features
 
 * **Global MIDI Routing:** The portal handles a single `navigator.requestMIDIAccess()` instance and pipes raw hardware data down to the active module instantly.
-* **Centralized Audio Engine:** Features a global, sample-based Tone.js Rompler drawer. Modules do not generate their own audio; they simply send processed MIDI data back up to the portal.
+* **Centralized Audio Engine:** Features a custom, low-latency AudioWorklet-based Rompler drawer running on a dedicated audio thread. Modules do not generate their own audio; they send processed MIDI events via a lock-free SharedArrayBuffer ring buffer. *(Note: Currently in a precarious state with regressions on gain staging, voice-stealing clicking, and reverb bypassed as a result of the latency-reduction sprint).*
 * **"Headless" Plugin Architecture:** Modules are strictly isolated in `src/plugins/`. They receive inputs and commands via standard React props, eliminating cross-origin headaches and redundant UI states.
 * **Unified Dashboard Interface:** A dark-mode, hardware-inspired aesthetic with a collapsible navigation sidebar and a global top control bar (Power, Panic, Info, Settings).
 * **Zero-Friction Context Switching:** Instantly swap between MIDI tools without losing your hardware input selection or your selected Rompler instrument patch.
@@ -34,21 +34,22 @@ The repository is strictly divided into the core host environment and isolated p
 
 ```text
 midi-web-apps-portal/
-├── public/                 # Global assets, LUTs, and digital fonts
+├── public/                 # Global assets, AudioWorklet (RomplerWorklet.js), and fonts
 ├── src/
 │   ├── config/             # App Registry and configurations
 │   │   └── appRegistry.js
 │   ├── core/               # THE PORTAL HOST
-│   │   ├── rompler/        # Tone.js Audio Engine & UI Drawer
-│   │   ├── utils/          # Host utilities (e.g. latency profiler)
+│   │   ├── rompler/        # Pure Native Web Audio Engine & UI Drawer
+│   │   │   ├── engine.js   # Native audio context & voice router
+│   │   │   └── ...
+│   │   ├── utils/          # Host utilities (RingBuffer.js, latencyProfiler.js)
 │   │   └── App.jsx         # Main Host Layout & State Controller
-    └── plugins/            # THE HEADLESS MODULES
-        ├── chord-notator/  # Renders sheet music notation
-        ├── dynamics/       # Velocity compressor/expander
-        ├── midi-transposer/ # Two-zone keyboard transposer & output filter
-        ├── monitor/        # MIDI log/event visualizer
-        ├── note-range-filter/ # Filters MIDI note ranges
-        └── pitch-class-matrix/ # Scale and root quantizer
+│   └── plugins/            # THE HEADLESS MODULES
+│       ├── chord-notator/  # Renders sheet music notation
+│       ├── dynamics/       # Velocity compressor/expander
+│       ├── midi-transposer/ # Two-zone keyboard transposer & output filter
+│       ├── monitor/        # MIDI log/event visualizer
+│       └── pitch-class-matrix/ # Scale and root quantizer
 ```
 
 ---
