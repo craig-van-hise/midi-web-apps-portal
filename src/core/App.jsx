@@ -11,6 +11,10 @@ import MidiTransposer from '../plugins/midi-transposer';
 import { MasterRompler } from './rompler/MasterRompler';
 import { motion, AnimatePresence } from 'framer-motion';
 import { latencyProfiler } from './utils/latencyProfiler';
+import { audioEngine } from './rompler/engine';
+import { MidiRingBuffer } from './utils/RingBuffer';
+
+const midiRingBuffer = new MidiRingBuffer();
 
 function AppIcon({ name, className }) {
   const IconComponent = Icons[name] || Icons.Music;
@@ -62,24 +66,17 @@ function App() {
     setActiveNotes([...activeNotesRef.current]);
   }, 32), []);
 
-  // Downstream MIDI Out handler (Plugin-to-Portal)
   const handleRomplerOutput = useCallback((midiData) => {
     if (!midiData || midiData.length === 0) return;
     const [status, note, velocity] = midiData;
     const command = status & 0xf0;
 
-    // 1. SACRED AUDIO EXECUTION (Synchronous)
-    if (command === 0x90 && velocity > 0) {
-      if (window.playNoteOn) {
-        window.playNoteOn(note, velocity);
-      }
-    } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
-      if (window.playNoteOff) {
-        window.playNoteOff(note);
-      }
+    // DIRECT FAST-PATH TO AUDIO WORKLET VIA SAB
+    if (midiRingBuffer) {
+      midiRingBuffer.push(status, note, velocity);
     }
 
-    // 2. DEFERRED UI RENDER (Asynchronous & Throttled)
+    // Throttled UI Render
     if (command === 0x90 && velocity > 0) {
       if (!activeNotesRef.current.some((n) => n.note === note)) {
         activeNotesRef.current.push({ note, velocity, time: Date.now() });
@@ -126,7 +123,7 @@ function App() {
     };
   }, []);
 
-  // Route physical MIDI messages to active plugin state
+  // Route physical MIDI messages to active plugin state via lock-free ring buffer
   useEffect(() => {
     if (!midiAccess || !selectedInputId) return;
     const input = midiAccess.inputs.get(selectedInputId);
@@ -135,11 +132,7 @@ function App() {
     const handleMidiMessage = (message) => {
       const data = Array.from(message.data);
       if (isPowerActive) {
-        const [status, note, velocity] = data;
-        const isNoteOn = (status & 0xf0) === 0x90 && velocity > 0;
-        if (isNoteOn) {
-          latencyProfiler.markInput(note);
-        }
+        if ((data[0] & 0xf0) === 0x90 && data[2] > 0) latencyProfiler.markInput(data[1]);
         const customEvent = new CustomEvent('midi', { detail: data });
         midiBusRef.current.dispatchEvent(customEvent);
       }
@@ -150,6 +143,8 @@ function App() {
       input.removeEventListener('midimessage', handleMidiMessage);
     };
   }, [midiAccess, selectedInputId, isPowerActive]);
+
+
 
   // Reset states on active app transition
   useEffect(() => {
@@ -354,6 +349,7 @@ function App() {
           <MasterRompler
             isOpen={isDrawerOpen}
             onToggle={() => setIsDrawerOpen(!isDrawerOpen)}
+            sabBuffer={midiRingBuffer.array.buffer}
           />
         </main>
       </div>

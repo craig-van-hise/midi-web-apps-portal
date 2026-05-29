@@ -51,8 +51,6 @@ vi.spyOn(romplerAudioEngine, 'setAttack').mockImplementation(() => {});
 vi.spyOn(romplerAudioEngine, 'setDecay').mockImplementation(() => {});
 vi.spyOn(romplerAudioEngine, 'setSustain').mockImplementation(() => {});
 vi.spyOn(romplerAudioEngine, 'setRelease').mockImplementation(() => {});
-vi.spyOn(romplerAudioEngine, 'noteOn').mockImplementation(() => {});
-vi.spyOn(romplerAudioEngine, 'releaseNote').mockImplementation(() => {});
 vi.spyOn(romplerAudioEngine, 'releaseAll').mockImplementation(() => {});
 
 if (typeof window !== 'undefined' && typeof window.HTMLElement !== 'undefined') {

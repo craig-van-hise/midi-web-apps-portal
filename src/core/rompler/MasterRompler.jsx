@@ -9,7 +9,7 @@ import { cn } from './utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import './rompler.css';
 
-export function MasterRompler({ isOpen, onToggle }) {
+export function MasterRompler({ isOpen, onToggle, sabBuffer }) {
   const [power, setPower] = useState(true);
   const [instrument, setInstrument] = usePersistentState('rompler_instrument', 'piano');
   const [isLoading, setIsLoading] = useState(false);
@@ -34,7 +34,7 @@ export function MasterRompler({ isOpen, onToggle }) {
     if (power) {
       const start = async () => {
         setIsLoading(true);
-        await audioEngine.init();
+        await audioEngine.init(sabBuffer);
         await audioEngine.loadInstrument(instrument);
         audioEngine.setVolume(volume);
         audioEngine.setPan(pan);
@@ -78,20 +78,9 @@ export function MasterRompler({ isOpen, onToggle }) {
   useEffect(() => { audioEngine.setSustain(sustain); }, [sustain]);
   useEffect(() => { audioEngine.setRelease(release); }, [release]);
 
-  // Global window listeners for routing MIDI in from Portal / child plugins
+  // Global window listeners — audio is now handled by the AudioWorklet via SAB.
+  // Only panic and volume remain as window globals.
   useEffect(() => {
-    window.playNoteOn = (note, velocity) => {
-      if (power && !isLoading) {
-        const noteStr = Tone.Frequency(note, 'midi').toNote();
-        audioEngine.noteOn(noteStr, velocity / 127);
-      }
-    };
-    window.playNoteOff = (note) => {
-      if (power) {
-        const noteStr = Tone.Frequency(note, 'midi').toNote();
-        audioEngine.releaseNote(noteStr);
-      }
-    };
     window.romplerPanic = () => {
       audioEngine.releaseAll();
     };
@@ -100,25 +89,23 @@ export function MasterRompler({ isOpen, onToggle }) {
     };
 
     return () => {
-      window.playNoteOn = null;
-      window.playNoteOff = null;
       window.romplerPanic = null;
       window.setRomplerVolume = null;
     };
-  }, [power, isLoading]);
+  }, [power]);
 
   // Interaction Trap for Autoplay compliance
   useEffect(() => {
     const initTrap = async () => {
       if (!audioEngine.isInitialized && power) {
         try {
-          await audioEngine.init();
+          await audioEngine.init(sabBuffer);
           setAudioSuspendedWarning(false);
         } catch (err) {
           console.error('Audio initialization failed:', err);
         }
-      } else if (audioEngine.isInitialized && Tone.context.state !== 'running') {
-        await Tone.context.resume();
+      } else if (audioEngine.isInitialized && audioEngine.ctx && audioEngine.ctx.state !== 'running') {
+        await audioEngine.ctx.resume();
         setAudioSuspendedWarning(false);
       }
     };
