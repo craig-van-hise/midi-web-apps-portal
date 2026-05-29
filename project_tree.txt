@@ -1,17 +1,9 @@
 
 /Users/vv2024/Documents/Repos - vv2024/MIDI/WebApps/midi-web-apps-portal
 ├── # Prompts
-|  ├── # 36.md
-|  ├── # 37.md
-|  ├── # 38.md
-|  ├── # 47.md
-|  ├── # 48.md
-|  ├── # 49.md
-|  ├── # 50.md
-|  ├── # 51.md
-|  ├── # 52.md
-|  ├── # 53.md
-|  ├── # 54.md
+|  ├── # 57.md
+|  ├── # 58.md
+|  ├── # 59.md
 |  └── xOlder
 |     ├── # 0.md
 |     ├── # 1.md
@@ -54,7 +46,17 @@
 |     ├── # 44.md
 |     ├── # 45.md
 |     ├── # 46.md
+|     ├── # 47.md
+|     ├── # 48.md
+|     ├── # 49.md
 |     ├── # 5.md
+|     ├── # 50.md
+|     ├── # 51.md
+|     ├── # 52.md
+|     ├── # 53.md
+|     ├── # 54.md
+|     ├── # 55.md
+|     ├── # 56.md
 |     ├── # 6.md
 |     ├── # 7.md
 |     ├── # 8.md
@@ -67,6 +69,7 @@
 ├── PROJECT_STATE.md
 ├── README.md
 ├── README_original.md
+├── engine_legacy_reference.js
 ├── eslint.config.js
 ├── index.html
 ├── llms.txt
@@ -75,7 +78,6 @@
 ├── project_tree.txt
 ├── public
 |  ├── PCS_LUT.dat
-|  ├── RomplerWorklet.js
 |  ├── favicon.svg
 |  ├── fonts
 |  |  └── Bravura.woff2
@@ -102,8 +104,6 @@
 |  |  |  ├── usePersistentState.js
 |  |  |  └── utils.js
 |  |  └── utils
-|  |     ├── RingBuffer.js
-|  |     ├── RingBuffer.test.js
 |  |     ├── latencyProfiler.js
 |  |     └── latencyProfiler.test.js
 |  ├── index.css

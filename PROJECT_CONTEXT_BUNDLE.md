@@ -3,17 +3,9 @@
 
 /Users/vv2024/Documents/Repos - vv2024/MIDI/WebApps/midi-web-apps-portal
 ├── # Prompts
-|  ├── # 36.md
-|  ├── # 37.md
-|  ├── # 38.md
-|  ├── # 47.md
-|  ├── # 48.md
-|  ├── # 49.md
-|  ├── # 50.md
-|  ├── # 51.md
-|  ├── # 52.md
-|  ├── # 53.md
-|  ├── # 54.md
+|  ├── # 57.md
+|  ├── # 58.md
+|  ├── # 59.md
 |  └── xOlder
 |     ├── # 0.md
 |     ├── # 1.md
@@ -56,7 +48,17 @@
 |     ├── # 44.md
 |     ├── # 45.md
 |     ├── # 46.md
+|     ├── # 47.md
+|     ├── # 48.md
+|     ├── # 49.md
 |     ├── # 5.md
+|     ├── # 50.md
+|     ├── # 51.md
+|     ├── # 52.md
+|     ├── # 53.md
+|     ├── # 54.md
+|     ├── # 55.md
+|     ├── # 56.md
 |     ├── # 6.md
 |     ├── # 7.md
 |     ├── # 8.md
@@ -69,6 +71,7 @@
 ├── PROJECT_STATE.md
 ├── README.md
 ├── README_original.md
+├── engine_legacy_reference.js
 ├── eslint.config.js
 ├── index.html
 ├── llms.txt
@@ -77,7 +80,6 @@
 ├── project_tree.txt
 ├── public
 |  ├── PCS_LUT.dat
-|  ├── RomplerWorklet.js
 |  ├── favicon.svg
 |  ├── fonts
 |  |  └── Bravura.woff2
@@ -104,8 +106,6 @@
 |  |  |  ├── usePersistentState.js
 |  |  |  └── utils.js
 |  |  └── utils
-|  |     ├── RingBuffer.js
-|  |     ├── RingBuffer.test.js
 |  |     ├── latencyProfiler.js
 |  |     └── latencyProfiler.test.js
 |  ├── index.css
@@ -195,13 +195,6 @@ ignored: directory (144)
 
 # Project State: VV | WebApps Portal
 
-> [!WARNING]
-> **Audio Engine Status: Precarious Position**
-> The audio engine is currently in a highly sensitive and precarious state. Multiple structural rewrites to lower latency (bypassing Tone.js in favor of a pure Web Audio API context and a custom lock-free `SharedArrayBuffer` / `AudioWorklet` pipeline) have introduced several regressions that are currently unresolved:
-> 1. **Gain Staging / normalization regression**: Removing Tone.js Samplers ruined auto-normalization across different instrument sample maps. Some instruments (Electric Piano, Celeste, Harp) are extremely quiet compared to others.
-> 2. **Audio Pops & Clicks**: The custom DSP voice-stealing algorithm lacks zero-crossing/crossfade logic, resulting in pops on repeated notes.
-> 3. **Eradicated Reverb**: The convolution reverb and impulse response node were completely bypassed and stripped from the graph in an attempt to eradicate a perceived latency floor, rendering the output entirely dry.
-
 ## 1. Architecture & Directory Tree
 ```text
 midi-web-apps-portal/
@@ -209,7 +202,6 @@ midi-web-apps-portal/
 │   ├── fonts/
 │   │   └── Bravura.woff2
 │   ├── PCS_LUT.dat
-│   ├── RomplerWorklet.js      # Custom AudioWorklet DSP processor
 │   ├── favicon.svg
 │   └── icons.svg
 ├── src/
@@ -226,14 +218,12 @@ midi-web-apps-portal/
 │   │   │   ├── MasterRompler.css
 │   │   │   ├── MasterRompler.jsx
 │   │   │   ├── VUMeter.jsx
-│   │   │   ├── engine.js          # Pure Native Web Audio Engine (Tone.js bypassed)
+│   │   │   ├── engine.js          # Tone.js + smplr Audio Engine
 │   │   │   ├── engine.test.js
 │   │   │   ├── rompler.css
 │   │   │   ├── usePersistentState.js
 │   │   │   └── utils.js
 │   │   ├── utils/
-│   │   │   ├── RingBuffer.js      # SAB lock-free ring buffer
-│   │   │   ├── RingBuffer.test.js
 │   │   │   ├── latencyProfiler.js
 │   │   │   └── latencyProfiler.test.js
 │   │   ├── App.css
@@ -261,14 +251,14 @@ midi-web-apps-portal/
 ## 2. Tech Stack
 - **Core Framework**: React 19, Vite 8, ES6+ JavaScript
 - **Styling**: Tailwind CSS v4, Custom CSS variables, Framer Motion (via `motion`)
-- **Audio Engine**: Pure Web Audio API context with a custom `AudioWorklet` processor (`RomplerWorklet.js`) and a lock-free `SharedArrayBuffer` ring buffer for low-latency voice allocation. (Note: `tone` and `smplr` are in `package.json` but bypassed in `engine.js`).
+- **Audio Engine**: Highly-optimized native `Tone.js` and `smplr` instances with algorithmic routing (e.g. parallel Aux sends for `Tone.Freeverb` to avoid convolver FFT block latency).
 - **State Management**: React State & Context, Zustand
-- **Utility / Performance**: Lodash (`lodash/throttle`) for frame-rate limiting UI rendering, Custom RingBuffer for SAB IPC communication.
+- **Utility / Performance**: Lodash (`lodash/throttle`) for frame-rate limiting UI rendering.
 - **Icons**: Lucide React
 - **Testing**: Vitest, React Testing Library
 
 ## 3. Current System Capabilities
-- **Audio Engine**: Pure Web Audio context driving a custom polyphonic 32-voice sampler inside an `AudioWorklet`. MIDI events are piped through a lock-free `SharedArrayBuffer` ring buffer directly from the main thread to avoid IPC and React batching latency.
+- **Audio Engine**: Low-latency `Tone.js` + `smplr` architecture running on the main thread (`Tone.context.lookAhead = 0.002`). Executes MIDI triggers synchronously (bypassing React batching) and typecasts raw MIDI notes to Scientific Pitch Notation strings (`"C4"`) using `Tone.Frequency` before trigger. Reverb is configured as a parallel send/return bus using algorithmic `Tone.Freeverb` (Schroeder reverberator) to avoid FFT convolution delays.
 - **Tracking/MIDI Engine**: Global Web MIDI API manager routing hardware input directly down to active plugins using a ref-based `EventTarget` Event Bus, avoiding React batching issues and stuck notes.
 - **Visualizer & Processing Plugins**:
   - **Chord Notator**: Renders sheet music notation from live MIDI inputs in real-time.
@@ -279,7 +269,7 @@ midi-web-apps-portal/
 - **UI State Logic**: Frame-rate limited state sync (~30fps / 32ms) separating instant synchronous audio triggers from asynchronous rendering cycles.
 
 ## 4. Recent Evolution
-We undertook an extensive low-latency sprint to bypass Tone.js, moving sample playback into a dedicated custom `AudioWorkletNode` (`RomplerWorklet.js`) with a lock-free `SharedArrayBuffer` pipeline. While this successfully removed the Tone.js context wrapper and established pure native routing, we encountered significant audio regressions (uneven gain staging, clicks and pops on repeated notes, and dry output due to the removal of the convolution reverb). Recent commits resolved merge conflicts in `App.jsx` and `engine.js` to stabilize this custom-built native audio architecture.
+We abandoned the experimental custom `SharedArrayBuffer` / `AudioWorklet` architecture due to severe DSP regressions (clipping, clicking, poor gain staging). We reverted to a heavily optimized `Tone.js` + `smplr` framework that achieves the same low-latency floor by eliminating convolution reverb in favor of `Tone.Freeverb` and optimizing MIDI/audio routing on the main thread.
 
 
 ### FILE: README.md
@@ -294,7 +284,7 @@ Built to demonstrate advanced MIDI data manipulation and web audio integration, 
 ## 🚀 Features
 
 * **Global MIDI Routing:** The portal handles a single `navigator.requestMIDIAccess()` instance and pipes raw hardware data down to the active module instantly.
-* **Centralized Audio Engine:** Features a custom, low-latency AudioWorklet-based Rompler drawer running on a dedicated audio thread. Modules do not generate their own audio; they send processed MIDI events via a lock-free SharedArrayBuffer ring buffer. *(Note: Currently in a precarious state with regressions on gain staging, voice-stealing clicking, and reverb bypassed as a result of the latency-reduction sprint).*
+* **Centralized Audio Engine:** Features a deeply optimized Tone.js and smplr engine. Modules do not generate their own audio; they send processed MIDI events to a centralized engine running with minimal latency context buffers, zero-latency algorithmic reverb (Tone.Freeverb), and parallel Aux sends.
 * **"Headless" Plugin Architecture:** Modules are strictly isolated in `src/plugins/`. They receive inputs and commands via standard React props, eliminating cross-origin headaches and redundant UI states.
 * **Unified Dashboard Interface:** A dark-mode, hardware-inspired aesthetic with a collapsible navigation sidebar and a global top control bar (Power, Panic, Info, Settings).
 * **Zero-Friction Context Switching:** Instantly swap between MIDI tools without losing your hardware input selection or your selected Rompler instrument patch.
@@ -320,15 +310,15 @@ The repository is strictly divided into the core host environment and isolated p
 
 ```text
 midi-web-apps-portal/
-├── public/                 # Global assets, AudioWorklet (RomplerWorklet.js), and fonts
+├── public/                 # Global assets and fonts
 ├── src/
 │   ├── config/             # App Registry and configurations
 │   │   └── appRegistry.js
 │   ├── core/               # THE PORTAL HOST
-│   │   ├── rompler/        # Pure Native Web Audio Engine & UI Drawer
-│   │   │   ├── engine.js   # Native audio context & voice router
+│   │   ├── rompler/        # Tone.js + smplr Audio Engine & UI Drawer
+│   │   │   ├── engine.js   # Audio engine context, voice mapping & routing
 │   │   │   └── ...
-│   │   ├── utils/          # Host utilities (RingBuffer.js, latencyProfiler.js)
+│   │   ├── utils/          # Host utilities (latencyProfiler.js)
 │   │   └── App.jsx         # Main Host Layout & State Controller
 │   └── plugins/            # THE HEADLESS MODULES
 │       ├── chord-notator/  # Renders sheet music notation

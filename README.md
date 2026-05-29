@@ -8,7 +8,7 @@ Built to demonstrate advanced MIDI data manipulation and web audio integration, 
 ## 🚀 Features
 
 * **Global MIDI Routing:** The portal handles a single `navigator.requestMIDIAccess()` instance and pipes raw hardware data down to the active module instantly.
-* **Centralized Audio Engine:** Features a custom, low-latency AudioWorklet-based Rompler drawer running on a dedicated audio thread. Modules do not generate their own audio; they send processed MIDI events via a lock-free SharedArrayBuffer ring buffer. *(Note: Currently in a precarious state with regressions on gain staging, voice-stealing clicking, and reverb bypassed as a result of the latency-reduction sprint).*
+* **Centralized Audio Engine:** Features a deeply optimized Tone.js and smplr engine. Modules do not generate their own audio; they send processed MIDI events to a centralized engine running with minimal latency context buffers, zero-latency algorithmic reverb (Tone.Freeverb), and parallel Aux sends.
 * **"Headless" Plugin Architecture:** Modules are strictly isolated in `src/plugins/`. They receive inputs and commands via standard React props, eliminating cross-origin headaches and redundant UI states.
 * **Unified Dashboard Interface:** A dark-mode, hardware-inspired aesthetic with a collapsible navigation sidebar and a global top control bar (Power, Panic, Info, Settings).
 * **Zero-Friction Context Switching:** Instantly swap between MIDI tools without losing your hardware input selection or your selected Rompler instrument patch.
@@ -34,15 +34,15 @@ The repository is strictly divided into the core host environment and isolated p
 
 ```text
 midi-web-apps-portal/
-├── public/                 # Global assets, AudioWorklet (RomplerWorklet.js), and fonts
+├── public/                 # Global assets and fonts
 ├── src/
 │   ├── config/             # App Registry and configurations
 │   │   └── appRegistry.js
 │   ├── core/               # THE PORTAL HOST
-│   │   ├── rompler/        # Pure Native Web Audio Engine & UI Drawer
-│   │   │   ├── engine.js   # Native audio context & voice router
+│   │   ├── rompler/        # Tone.js + smplr Audio Engine & UI Drawer
+│   │   │   ├── engine.js   # Audio engine context, voice mapping & routing
 │   │   │   └── ...
-│   │   ├── utils/          # Host utilities (RingBuffer.js, latencyProfiler.js)
+│   │   ├── utils/          # Host utilities (latencyProfiler.js)
 │   │   └── App.jsx         # Main Host Layout & State Controller
 │   └── plugins/            # THE HEADLESS MODULES
 │       ├── chord-notator/  # Renders sheet music notation
