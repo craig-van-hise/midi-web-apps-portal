@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { appRegistry } from './appRegistry';
 
 describe('appRegistry', () => {
-  it('should contain exactly 5 objects with valid url strings', () => {
+  it('should contain exactly 6 objects with valid url strings', () => {
     expect(appRegistry).toBeDefined();
     expect(Array.isArray(appRegistry)).toBe(true);
-    expect(appRegistry.length).toBe(5);
+    expect(appRegistry.length).toBe(6);
 
     appRegistry.forEach((app) => {
       expect(app).toHaveProperty('id');
@@ -24,8 +24,9 @@ describe('appRegistry', () => {
     expect(appRegistry.find((app) => app.id === 'note-range-filter')).toBeUndefined();
   });
 
-  it('should have midi-transposer at index 1 (Phase 1 Test Case 2)', () => {
-    expect(appRegistry[1].id).toBe('midi-transposer');
+  it('should have midi-tonnetz at index 1 and midi-transposer at index 2', () => {
+    expect(appRegistry[1].id).toBe('midi-tonnetz');
+    expect(appRegistry[2].id).toBe('midi-transposer');
   });
 });
 

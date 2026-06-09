@@ -7,6 +7,13 @@ export const appRegistry = [
     description: "Generate and display sheet music notation from live MIDI input."
   },
   {
+    id: "midi-tonnetz",
+    title: "VV | MIDI Tonnetz",
+    icon: "Hexagon",
+    url: "http://localhost:3005/",
+    description: "Euler-Riemann topological grid for visualizing harmonic relationships."
+  },
+  {
     id: "midi-transposer",
     title: "VV | MIDI Transposer",
     icon: "SlidersHorizontal", 

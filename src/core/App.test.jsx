@@ -72,7 +72,8 @@ describe('App Portal Monolith Harness Tests', () => {
     fireEvent.click(secondSidebarItem);
 
     // Verify active app title updates
-    const updatedTitleHeader = screen.getByRole('heading', { name: appRegistry[1].title, level: 1 });
+    const transposerApp = appRegistry.find(a => a.title === 'VV | MIDI Transposer');
+    const updatedTitleHeader = screen.getByRole('heading', { name: transposerApp.title, level: 1 });
     expect(updatedTitleHeader).toBeInTheDocument();
   });
 

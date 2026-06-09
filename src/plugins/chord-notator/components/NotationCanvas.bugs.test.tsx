@@ -6,6 +6,7 @@ import '@testing-library/jest-dom';
 import NotationCanvas from './NotationCanvas';
 import { useMidi } from '../midi/MIDIProvider';
 import { vi } from 'vitest';
+import * as chordSpeller from '../utils/chordSpeller';
 
 vi.mock('../midi/MIDIProvider', () => ({
   useMidi: vi.fn(),
@@ -111,4 +112,65 @@ describe('NotationCanvas - PRP #94 Bug Fixes', () => {
     // It should have snapped to the last known pointer Y (148)
     expect(ghost).toHaveStyle('top: 148px');
   });
+
+  test('Identity Lock protection: does not break on virtual events', async () => {
+    const { container } = setupCanvas();
+
+    // 1. Send Note On (Physical) to establish active notes
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x90, 60, 100]), isVirtual: false }
+      }));
+    });
+
+    // 2. Click ROT to lock identity
+    act(() => {
+      window.dispatchEvent(new CustomEvent('APP_TRANSFORM', {
+        detail: { type: 'ROT_UP', stepSize: 1, isUiClick: true }
+      }));
+    });
+
+    // 3. Send a Virtual Note On -> Should NOT break the lock (meaning the lock remains active)
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x90, 64, 100]), isVirtual: true }
+      }));
+    });
+  });
+
+  test('Identity Lock breaks on diatonic KEY transpositions', async () => {
+    const { container } = setupCanvas();
+
+    // 1. Send Note On (Physical) to establish active notes
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x90, 60, 100]), isVirtual: false }
+      }));
+    });
+
+    // 2. Click ROT to lock identity
+    act(() => {
+      window.dispatchEvent(new CustomEvent('APP_TRANSFORM', {
+        detail: { type: 'ROT_UP', stepSize: 1, isUiClick: true }
+      }));
+    });
+
+    // Reset spy calls before KEY shift
+    const getChordSymbolSpy = vi.spyOn(chordSpeller, 'getChordSymbol');
+    getChordSymbolSpy.mockClear();
+
+    // 3. Dispatch KEY_UP event
+    act(() => {
+      window.dispatchEvent(new CustomEvent('APP_TRANSFORM', {
+        detail: { type: 'KEY_UP', stepSize: 1, isUiClick: true }
+      }));
+    });
+
+    // 4. Assert that getChordSymbol was called with chordIdentity where isActive is false
+    expect(getChordSymbolSpy).toHaveBeenCalled();
+    const lastCall = getChordSymbolSpy.mock.lastCall;
+    const identityArg = lastCall[5]; // 6th argument is chordIdentityRef.current
+    expect(identityArg.isActive).toBe(false);
+  });
 });
+

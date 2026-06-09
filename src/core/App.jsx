@@ -4,6 +4,7 @@ import * as Icons from 'lucide-react';
 import { appRegistry } from '../config/appRegistry';
 import DummyPlugin from '../plugins/DummyPlugin';
 import ChordNotator from '../plugins/chord-notator';
+import MidiTonnetz from '../plugins/midi-tonnetz';
 import PitchClassMatrix from '../plugins/pitch-class-matrix';
 import MidiMonitor from '../plugins/monitor';
 import MidiDynamics from '../plugins/dynamics';
@@ -21,6 +22,9 @@ function AppIcon({ name, className }) {
 function getPluginComponent(appId) {
   if (appId === 'chord-notator') {
     return ChordNotator;
+  }
+  if (appId === 'midi-tonnetz') {
+    return MidiTonnetz;
   }
   if (appId === 'pitch-class-matrix') {
     return PitchClassMatrix;

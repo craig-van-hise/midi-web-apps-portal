@@ -237,7 +237,7 @@ export function sumIntervalStrings(a: string, b: string): string {
     return acc + degSum;
 }
 
-export function getChordSpelling(notes: any[], keySignature: string = "C Major", lut: (PCS_Entry | null)[], overrides?: Record<number, string>, keyCenterPc?: number): string[] {
+export function getChordSpelling(notes: any[], keySignature: string = "C Major", lut: (PCS_Entry | null)[], overrides?: Record<number, string>, keyCenterPc?: number, includeOctave: boolean = false, chordIdentity?: ChordIdentity): string[] {
     const keyName = keySignature.split(' ')[0];
     const keySigPC = KEY_SIG_MAP[keyName] ?? 0;
     
@@ -249,7 +249,57 @@ export function getChordSpelling(notes: any[], keySignature: string = "C Major",
 
     const sortedInput = [...inputData].sort((a, b) => a.pitch - b.pitch);
     const sortedPitches = sortedInput.map(d => d.pitch);
+
+    // Identity Lock spelling bypass
+    if (chordIdentity && chordIdentity.isActive) {
+        const sortedSpellings = sortedPitches.map(pitch => {
+            const pc = (pitch % 12 + 12) % 12;
+            const spelling = chordIdentity.spellingMap[pc] || "C";
+            if (includeOctave) {
+                let octave = Math.floor(pitch / 12) - 1;
+                if (pc === 11 && spelling[0] === 'C') octave += 1;
+                if (pc === 0 && spelling[0] === 'B') octave -= 1;
+                return spelling + octave;
+            }
+            return spelling;
+        });
+
+        const result = new Array(notes.length);
+        sortedInput.forEach((data, i) => {
+            result[data.originalIndex] = sortedSpellings[i];
+        });
+        return result;
+    }
     
+    // Phase 2: Scale Subset Check & Contextual spelling override
+    const scaleName = keySignature.substring(keySignature.indexOf(' ') + 1) || 'Major';
+    const scaleMap = generateScaleSpellingMap(keyName, scaleName);
+    const scaleMapKeys = Object.keys(scaleMap).map(Number);
+    
+    if (scaleMapKeys.length > 0 && isPitchClassSubset(sortedPitches, scaleMapKeys)) {
+        const sortedSpellings = sortedPitches.map(pitch => {
+            const pc = (pitch % 12 + 12) % 12;
+            let spelling = scaleMap[pc];
+            if (overrides && overrides[pitch]) {
+                spelling = overrides[pitch];
+            }
+            if (includeOctave) {
+                let octave = Math.floor(pitch / 12) - 1;
+                if (pc === 11 && spelling[0] === 'C') octave += 1;
+                if (pc === 0 && spelling[0] === 'B') octave -= 1;
+                return spelling + octave;
+            }
+            return spelling;
+        });
+
+        // Map back to original order
+        const result = new Array(notes.length);
+        sortedInput.forEach((data, i) => {
+            result[data.originalIndex] = sortedSpellings[i];
+        });
+        return result;
+    }
+
     const decimal = psToDecimal(sortedPitches);
     const entry = lut[decimal];
 
@@ -265,8 +315,16 @@ export function getChordSpelling(notes: any[], keySignature: string = "C Major",
             else if (accidental === SMuFL.accidentalDoubleSharp) acc = "x";
             else if (accidental === SMuFL.accidentalFlat) acc = "b";
             else if (accidental === SMuFL.accidentalDoubleFlat) acc = "bb";
-            if (overrides && overrides[pitch]) return overrides[pitch];
-            return letter + acc;
+            let spelling = letter + acc;
+            if (overrides && overrides[pitch]) spelling = overrides[pitch];
+            if (includeOctave) {
+                let octave = Math.floor(pitch / 12) - 1;
+                const pc = pitch % 12;
+                if (pc === 11 && spelling[0] === 'C') octave += 1;
+                if (pc === 0 && spelling[0] === 'B') octave -= 1;
+                return spelling + octave;
+            }
+            return spelling;
         });
     } else {
         const lowPitch = sortedPitches[0];
@@ -355,13 +413,29 @@ export function getChordSpelling(notes: any[], keySignature: string = "C Major",
                 else if (accidental === SMuFL.accidentalDoubleSharp) acc = "x";
                 else if (accidental === SMuFL.accidentalFlat) acc = "b";
                 else if (accidental === SMuFL.accidentalDoubleFlat) acc = "bb";
-                return letter + acc;
+                let spelling = letter + acc;
+                if (includeOctave) {
+                    let octave = Math.floor(pitch / 12) - 1;
+                    const pc = pitch % 12;
+                    if (pc === 11 && spelling[0] === 'C') octave += 1;
+                    if (pc === 0 && spelling[0] === 'B') octave -= 1;
+                    return spelling + octave;
+                }
+                return spelling;
             }
             
             const absoluteInterval = sumIntervalStrings(toneInterval, rootRelKeyInterval);
             // 2. Force exact individual note spellings
-            if (overrides && overrides[pitch]) return overrides[pitch];
-            return convertIntervalToPitchSpelling(absoluteInterval, keySigPC);
+            let spelling = convertIntervalToPitchSpelling(absoluteInterval, keySigPC);
+            if (overrides && overrides[pitch]) spelling = overrides[pitch];
+            if (includeOctave) {
+                let octave = Math.floor(pitch / 12) - 1;
+                const pc = pitch % 12;
+                if (pc === 11 && spelling[0] === 'C') octave += 1;
+                if (pc === 0 && spelling[0] === 'B') octave -= 1;
+                return spelling + octave;
+            }
+            return spelling;
         });
     }
 
@@ -401,18 +475,22 @@ function getIntervalBetweenPitches(referenceName: string, targetName: string): s
  */
 export function getSpellingData(midiNote: number, spelling: string): { stepOffset: number, accidental: string | null } {
     const letter = spelling[0];
-    const accidentalPart = spelling.substring(1);
+    const spellingWithoutOctave = spelling.replace(/\d+$/, '');
+    const accidentalPart = spellingWithoutOctave.substring(1);
     const step = DIATONIC_NAMES.indexOf(letter);
     
+    const octaveMatch = spelling.match(/\d+$/);
     const baseOctave = Math.floor(midiNote / 12) - 1;
     const pitchClass = midiNote % 12;
     const targetLetterPC = DIATONIC_PC[step];
     
-    let diatonicOctave = baseOctave;
+    let diatonicOctave = octaveMatch ? parseInt(octaveMatch[0], 10) : baseOctave;
     
-    // Octave correction
-    if (pitchClass === 11 && targetLetterPC === 0) diatonicOctave += 1;
-    if (pitchClass === 0 && targetLetterPC === 11) diatonicOctave -= 1;
+    // Octave correction (only if octave not explicitly specified in spelling)
+    if (!octaveMatch) {
+        if (pitchClass === 11 && targetLetterPC === 0) diatonicOctave += 1;
+        if (pitchClass === 0 && targetLetterPC === 11) diatonicOctave -= 1;
+    }
     
     const stepOffset = ((diatonicOctave - 4) * 7) + step;
     
@@ -428,9 +506,20 @@ export function getSpellingData(midiNote: number, spelling: string): { stepOffse
 /**
  * Derives a chord symbol from the pitch set and LUT entry.
  */
-export function getChordSymbol(ps: number[], keySignature: string = "C Major", lut: (PCS_Entry | null)[], overrides?: Record<number, string>, keyCenterPc?: number): string {
+export function getChordSymbol(ps: number[], keySignature: string = "C Major", lut: (PCS_Entry | null)[], overrides?: Record<number, string>, keyCenterPc?: number, chordIdentity?: ChordIdentity): string {
     const sortedPS = [...ps].sort((a, b) => a - b);
     if (sortedPS.length === 0) return "";
+
+    // Identity Lock spelling bypass
+    if (chordIdentity && chordIdentity.isActive) {
+        const lowestNotePC = (sortedPS[0] % 12 + 12) % 12;
+        if (lowestNotePC === chordIdentity.rootPC) {
+            return chordIdentity.baseName;
+        } else {
+            const bassSpelling = chordIdentity.spellingMap[lowestNotePC] || "C";
+            return `${chordIdentity.baseName} / ${bassSpelling}`;
+        }
+    }
     
     const decimal = psToDecimal(sortedPS);
     const entry = lut[decimal];
@@ -512,3 +601,170 @@ export function getChordSymbol(ps: number[], keySignature: string = "C Major", l
     
     return symbol;
 }
+
+export const SCALE_INTERVALS: Record<string, string[]> = {
+  'Major': ["1", "2", "3", "4", "5", "6", "7"],
+  'Minor (Natural)': ["1", "2", "b3", "4", "5", "b6", "b7"],
+  'Melodic Minor': ["1", "2", "b3", "4", "5", "6", "7"],
+  'Harmonic Minor': ["1", "2", "b3", "4", "5", "b6", "7"],
+  'Harmonic Major': ["1", "2", "3", "4", "5", "b6", "7"],
+  'Major Pentatonic': ["1", "2", "3", "5", "6"],
+  'Whole Tone': ["1", "2", "3", "#4", "#5", "#6"],
+  'Augmented': ["1", "b3", "3", "5", "#5", "7"],
+  'Diminished': ["1", "2", "b3", "4", "b5", "b6", "6", "7"]
+};
+
+export function generateScaleSpellingMap(rootNote: string, scaleType: string): Record<number, string> {
+    const rootPC = PITCH_TO_PC[rootNote];
+    if (rootPC === undefined) {
+        return {};
+    }
+    const rootLetter = rootNote[0];
+    const rootLetterIndex = DIATONIC_NAMES.indexOf(rootLetter);
+    if (rootLetterIndex === -1) {
+        return {};
+    }
+
+    // Try to find the intervals
+    let intervals = SCALE_INTERVALS[scaleType];
+    if (!intervals) {
+        // Case insensitive search
+        const key = Object.keys(SCALE_INTERVALS).find(k => k.toLowerCase() === scaleType.toLowerCase());
+        intervals = key ? SCALE_INTERVALS[key] : SCALE_INTERVALS['Major'];
+    }
+
+    const map: Record<number, string> = {};
+    const majorSteps = [0, 2, 4, 5, 7, 9, 11];
+
+    intervals.forEach(interval => {
+        const match = interval.match(/^([b#x]*)(\d+)$/);
+        if (!match) return;
+        const accPrefix = match[1];
+        const degree = parseInt(match[2], 10);
+        const simpleDegree = ((degree - 1) % 7) + 1;
+        const baseSemitones = majorSteps[simpleDegree - 1];
+
+        let intervalOffset = 0;
+        if (accPrefix === "b") intervalOffset = -1;
+        else if (accPrefix === "bb") intervalOffset = -2;
+        else if (accPrefix === "#") intervalOffset = 1;
+        else if (accPrefix === "x") intervalOffset = 2;
+
+        const intervalPC = (baseSemitones + intervalOffset + 12) % 12;
+        const absolutePC = (rootPC + intervalPC) % 12;
+        const step = (rootLetterIndex + simpleDegree - 1) % 7;
+        const targetLetter = DIATONIC_NAMES[step];
+        const targetLetterPC = majorSteps[step];
+
+        let diff = (absolutePC - targetLetterPC + 12) % 12;
+        if (diff > 6) diff -= 12;
+
+        let acc = "";
+        if (diff === 1) acc = "#";
+        else if (diff === 2) acc = "x";
+        else if (diff === -1) acc = "b";
+        else if (diff === -2) acc = "bb";
+
+        map[absolutePC] = targetLetter + acc;
+    });
+
+    return map;
+}
+
+export function isPitchClassSubset(activeNotesArr: number[], scaleMapKeysArr: number[]): boolean {
+    if (activeNotesArr.length === 0) return false;
+    const scaleSet = new Set(scaleMapKeysArr);
+    return activeNotesArr.every(note => scaleSet.has((note % 12 + 12) % 12));
+}
+
+export interface ChordIdentity {
+    isActive: boolean;
+    baseName: string;
+    rootPC: number;
+    spellingMap: Record<number, string>;
+}
+
+export function deriveChordIdentity(
+    pitches: number[],
+    keySignature: string,
+    lut: (PCS_Entry | null)[],
+    overrides?: Record<number, string>,
+    keyCenterPc?: number
+): ChordIdentity {
+    const spellings = getChordSpelling(pitches, keySignature, lut, overrides, keyCenterPc, false);
+    const symbol = getChordSymbol(pitches, keySignature, lut, overrides, keyCenterPc);
+    const baseName = symbol.split(" / ")[0];
+    const rootNameMatch = baseName.match(/^[A-G][b#]*/);
+    const rootName = rootNameMatch ? rootNameMatch[0] : "C";
+    const rootPC = PITCH_TO_PC[rootName] ?? 0;
+    
+    const spellingMap: Record<number, string> = {};
+    pitches.forEach((pitch, i) => {
+        const pc = (pitch % 12 + 12) % 12;
+        spellingMap[pc] = spellings[i].replace(/\d+$/, '');
+    });
+    
+    return {
+        isActive: false,
+        baseName,
+        rootPC,
+        spellingMap
+    };
+}
+
+export function transposeChordIdentity(
+    identity: ChordIdentity,
+    delta: number,
+    keySignature: string,
+    lut: (PCS_Entry | null)[]
+): ChordIdentity {
+    if (!identity.isActive) return identity;
+    
+    const newRootPC = (identity.rootPC + delta + 12) % 12;
+    
+    // Transpose baseName root
+    const rootNameMatch = identity.baseName.match(/^[A-G][b#]*/);
+    let newBaseName = identity.baseName;
+    if (rootNameMatch) {
+        const rootName = rootNameMatch[0];
+        const rootPC = PITCH_TO_PC[rootName] ?? 0;
+        const targetRootPC = (rootPC + delta + 12) % 12;
+        const refMidi = 60 + targetRootPC;
+        const { stepOffset, accidental } = getEnharmonicSpelling(refMidi, keySignature, lut);
+        const letter = DIATONIC_NAMES[((stepOffset % 7) + 7) % 7];
+        let acc = "";
+        if (accidental === SMuFL.accidentalSharp) acc = "#";
+        else if (accidental === SMuFL.accidentalDoubleSharp) acc = "x";
+        else if (accidental === SMuFL.accidentalFlat) acc = "b";
+        else if (accidental === SMuFL.accidentalDoubleFlat) acc = "bb";
+        const newRootSpelling = letter + acc;
+        newBaseName = identity.baseName.replace(/^[A-G][b#]*/, newRootSpelling);
+    }
+    
+    // Transpose spellingMap keys and values
+    const newSpellingMap: Record<number, string> = {};
+    Object.entries(identity.spellingMap).forEach(([pcStr, spelling]) => {
+        const pc = parseInt(pcStr, 10);
+        const newPC = (pc + delta + 12) % 12;
+        
+        // Find spelling of newPC in key signature
+        const refMidi = 60 + newPC;
+        const { stepOffset, accidental } = getEnharmonicSpelling(refMidi, keySignature, lut);
+        const letter = DIATONIC_NAMES[((stepOffset % 7) + 7) % 7];
+        let acc = "";
+        if (accidental === SMuFL.accidentalSharp) acc = "#";
+        else if (accidental === SMuFL.accidentalDoubleSharp) acc = "x";
+        else if (accidental === SMuFL.accidentalFlat) acc = "b";
+        else if (accidental === SMuFL.accidentalDoubleFlat) acc = "bb";
+        newSpellingMap[newPC] = letter + acc;
+    });
+    
+    return {
+        isActive: true,
+        baseName: newBaseName,
+        rootPC: newRootPC,
+        spellingMap: newSpellingMap
+    };
+}
+
+

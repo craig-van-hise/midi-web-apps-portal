@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { SMuFL, assignXLevels, transposeDiatonically, calculateWriteModePitch, type AccidentalOverride, getNoteNameFromPosition, enforcePianoRange } from '../utils/notationMath';
 import { useMidi } from '../midi/MIDIProvider';
 import KeySignatureSelector from './KeySignatureSelector';
-import { getChordSpelling, getSpellingData, getChordSymbol, KEY_SIG_MAP } from '../utils/chordSpeller';
+import { getChordSpelling, getSpellingData, getChordSymbol, KEY_SIG_MAP, PITCH_TO_PC, type ChordIdentity, transposeChordIdentity } from '../utils/chordSpeller';
 import { audioEngine } from '../audio/engine';
 import * as Tone from 'tone';
 
@@ -36,6 +36,12 @@ const NotationCanvas: React.FC = () => {
   const [staffSpace, setStaffSpace] = useState<number>(12); // Default value
   const activeNotes = useRef<ActiveNoteData[]>([]);
   const [chordSymbol, setChordSymbol] = useState<string>("");
+  const chordIdentityRef = useRef<ChordIdentity>({
+    isActive: false,
+    baseName: "",
+    rootPC: 0,
+    spellingMap: {}
+  });
   const { keySignature = 'C Major', splitPoint = 60, lut = [], updateActiveNotes, isToggleModeActive, isHoldModeActive, setSelectedNotes, listenMode = true, uiVelocity = 80, homeChord = [60], setHomeChord } = useMidi();
   const [localHoldMode, setLocalHoldMode] = useState<boolean>(false);
   const effectiveHoldModeRef = useRef<boolean>(false);
@@ -180,6 +186,10 @@ const NotationCanvas: React.FC = () => {
 
     commitState();
 
+    if (chordIdentityRef.current.isActive) {
+        chordIdentityRef.current = transposeChordIdentity(chordIdentityRef.current, shift, keySignatureRef.current, lutRef.current);
+    }
+
     const updatedNotes = activeNotes.current.map((noteData) => {
       const isSelected = selectedNoteIds.current.has(noteData.id);
       if (!isSelected) return noteData;
@@ -231,9 +241,11 @@ const NotationCanvas: React.FC = () => {
           }
       });
     }
+    forceUpdate();
   };
 
   const applyDiatonicShift = (delta: number, stepSize: number = 1, isUiClick: boolean = true) => {
+    chordIdentityRef.current.isActive = false;
     if (selectedNoteIds.current.size === 0) return;
     const keyName = keySignatureRef.current;
 
@@ -302,6 +314,7 @@ const NotationCanvas: React.FC = () => {
           }
       });
     }
+    forceUpdate();
   };
 
   const applyPcsRotation = (delta: number, stepSize: number = 1, isUiClick: boolean = true) => {
@@ -374,6 +387,9 @@ const NotationCanvas: React.FC = () => {
 
     activeNotes.current = uniqueNotes;
 
+    // Immediately activate Identity Lock on rotation
+    chordIdentityRef.current.isActive = true;
+
     const newSelection = new Set<string>();
     uniqueNotes.forEach(noteData => {
       if (selectedNoteIds.current.has(noteData.id)) {
@@ -407,6 +423,7 @@ const NotationCanvas: React.FC = () => {
           }
       });
     }
+    forceUpdate();
   };
 
   const undo = () => {
@@ -690,9 +707,29 @@ const NotationCanvas: React.FC = () => {
           if (n.spellingOverride) overrides[n.note] = n.spellingOverride;
       });
 
-      const spellings = getChordSpelling(pitches, keyName, lutRef.current, overrides, keyCenterPc);
-      const symbol = getChordSymbol(pitches, keyName, lutRef.current, overrides, keyCenterPc);
+      const spellings = getChordSpelling(pitches, keyName, lutRef.current, overrides, keyCenterPc, true, chordIdentityRef.current);
+      const symbol = getChordSymbol(pitches, keyName, lutRef.current, overrides, keyCenterPc, chordIdentityRef.current);
       setChordSymbol(symbol);
+
+      if (!chordIdentityRef.current.isActive) {
+          const baseName = symbol.split(" / ")[0];
+          const rootNameMatch = baseName.match(/^[A-G][b#]*/);
+          const rootName = rootNameMatch ? rootNameMatch[0] : "C";
+          const rootPC = PITCH_TO_PC[rootName] ?? 0;
+          
+          const spellingMap: Record<number, string> = {};
+          pitches.forEach((pitch, i) => {
+              const pc = (pitch % 12 + 12) % 12;
+              spellingMap[pc] = spellings[i].replace(/\d+$/, '');
+          });
+          
+          chordIdentityRef.current = {
+              isActive: false,
+              baseName,
+              rootPC,
+              spellingMap
+          };
+      }
 
       activeNotes.current.forEach((data, i) => {
         // Save the final broadcast string
@@ -733,6 +770,7 @@ const NotationCanvas: React.FC = () => {
         activeNotes.current = [];
         physicalKeysDown.current.clear();
         isWaitingForNewChord.current = false;
+        chordIdentityRef.current.isActive = false;
         setRenderedNotes([]);
         setOttavaLabels([]);
         updateActiveNotes?.([]);
@@ -768,6 +806,10 @@ const NotationCanvas: React.FC = () => {
       const velocity = data[2];
       const isNoteOn = (status & 0xF0) === 0x90 && velocity > 0;
       const isNoteOff = (status & 0xF0) === 0x80 || ((status & 0xF0) === 0x90 && velocity === 0);
+
+      if ((isNoteOn || isNoteOff) && !isVirtual) {
+          chordIdentityRef.current.isActive = false;
+      }
 
       let stateCommitted = false;
       const maybeCommit = () => {
