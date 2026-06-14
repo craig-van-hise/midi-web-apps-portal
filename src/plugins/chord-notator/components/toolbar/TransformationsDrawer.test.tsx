@@ -46,21 +46,18 @@ describe('TransformationsDrawer Integration', () => {
     
     const toggleButton = screen.getByRole('button', { name: /toggle drawer/i });
     
-    // Check initial state (closed)
-    // The drawer container has the sliding classes
-    const drawerContainer = screen.getByText('semi').closest('.transition-all');
-    expect(drawerContainer).toHaveClass('-translate-y-[155px]');
-
-    // Click to open
-    fireEvent.click(toggleButton);
-    
-    // Check open state
-    expect(drawerContainer).toHaveClass('translate-y-0');
-    expect(drawerContainer).not.toHaveClass('-translate-y-[155px]');
+    const wrapper = screen.getByTestId('transformations-drawer');
+    expect(wrapper).toHaveAttribute('data-open', 'true');
 
     // Click to close
     fireEvent.click(toggleButton);
-    expect(drawerContainer).toHaveClass('-translate-y-[155px]');
+    
+    // Check closed state
+    expect(wrapper).toHaveAttribute('data-open', 'false');
+
+    // Click to open
+    fireEvent.click(toggleButton);
+    expect(wrapper).toHaveAttribute('data-open', 'true');
   });
 
   it('calculates vertical velocity for the PLAY button', () => {

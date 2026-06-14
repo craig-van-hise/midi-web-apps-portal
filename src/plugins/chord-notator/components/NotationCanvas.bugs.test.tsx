@@ -172,5 +172,96 @@ describe('NotationCanvas - PRP #94 Bug Fixes', () => {
     const identityArg = lastCall[5]; // 6th argument is chordIdentityRef.current
     expect(identityArg.isActive).toBe(false);
   });
+
+  test('Bug: Note removal after rotation updates chord symbol (breaks lock)', async () => {
+    (useMidi as any).mockReturnValue({
+      keySignature: 'C Major',
+      splitPoint: 60,
+      lut: Array(4096).fill(null), 
+      updateActiveNotes: mockUpdateActiveNotes,
+      isToggleModeActive: true,
+    });
+
+    // Mock getChordSymbol and getChordSpelling to simulate chord speller behavior
+    const getChordSymbolSpy = vi.spyOn(chordSpeller, 'getChordSymbol');
+    getChordSymbolSpy.mockImplementation((ps, keySig, lut, overrides, keyCenter, chordIdentity) => {
+      if (ps.length === 0) return "";
+      if (chordIdentity && chordIdentity.isActive) {
+        const lowestNotePC = (ps[0] % 12 + 12) % 12;
+        if (lowestNotePC === chordIdentity.rootPC) {
+          return chordIdentity.baseName;
+        } else {
+          const bassSpelling = chordIdentity.spellingMap[lowestNotePC] || "C";
+          return `${chordIdentity.baseName} / ${bassSpelling}`;
+        }
+      }
+      const sorted = [...ps].sort((a, b) => a - b);
+      const pcs = sorted.map(p => p % 12);
+      if (pcs.length === 3 && pcs.includes(0) && pcs.includes(4) && pcs.includes(7)) {
+        const lowest = pcs[0];
+        if (lowest === 0) return "C";
+        if (lowest === 4) return "C / E";
+        if (lowest === 7) return "C / G";
+      }
+      if (pcs.length === 2 && pcs.includes(4) && pcs.includes(7)) {
+        return "Em";
+      }
+      return "-";
+    });
+
+    const getChordSpellingSpy = vi.spyOn(chordSpeller, 'getChordSpelling');
+    getChordSpellingSpy.mockImplementation((ps, keySig, lut, overrides, keyCenter, includeOctave, chordIdentity) => {
+      return ps.map(pitch => {
+        const pc = pitch % 12;
+        if (pc === 0) return "C";
+        if (pc === 4) return "E";
+        if (pc === 7) return "G";
+        return "C";
+      });
+    });
+
+    const { container } = setupCanvas();
+
+    // 1. Establish active notes [C4 (60), E4 (64), G4 (67)] - C Major
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x90, 60, 100]), isVirtual: false }
+      }));
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x90, 64, 100]), isVirtual: false }
+      }));
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x90, 67, 100]), isVirtual: false }
+      }));
+    });
+
+    const pill = screen.getByTestId('chord-symbol-pill');
+    await waitFor(() => {
+      expect(pill).toHaveTextContent('C');
+    });
+
+    // 2. Rotate up (yielding [E4 (64), G4 (67), C5 (72)]) -> Chord identity should lock
+    act(() => {
+      window.dispatchEvent(new CustomEvent('APP_TRANSFORM', {
+        detail: { type: 'ROT_UP', stepSize: 1, isUiClick: true }
+      }));
+    });
+
+    await waitFor(() => {
+      expect(pill).toHaveTextContent('C / E');
+    });
+
+    // 3. Remove C5 (72) via UI keyboard (virtual note-on toggles it off)
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x90, 72, 100]), isVirtual: true }
+      }));
+    });
+
+    // 4. Chord symbol should update to reflect remaining notes [E4, G4] (e.g. not remain "C / E")
+    await waitFor(() => {
+      expect(pill).toHaveTextContent('Em');
+    });
+  });
 });
 

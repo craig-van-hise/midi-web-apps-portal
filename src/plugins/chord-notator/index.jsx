@@ -102,10 +102,19 @@ const ChordNotatorContent = ({
           <NotationCanvas />
         </div>
         
-        <div className="relative z-30 bg-white dark:bg-[#111] p-3 rounded-lg shadow-xl border border-gray-200 dark:border-gray-800">
-          <Keyboard />
+        {/* The strict anchor wrapper */}
+        <div className="relative isolate flex flex-col items-center w-full max-w-max mx-auto">
+          {/* The Ceiling (Keyboard Card) - z-20 forces it above the drawer */}
+          <div className="relative z-20 bg-white dark:bg-[#111] p-3 rounded-lg shadow-xl border border-gray-200 dark:border-gray-800 w-full">
+            <Keyboard />
+          </div>
+          
+          {/* The Drawer - absolute top-full anchors it to the bottom of the wrapper */}
+          {/* z-10 forces it below the ceiling. */}
+          <div className="absolute left-0 right-0 top-full z-10 flex justify-center">
+            <TransformationsDrawer />
+          </div>
         </div>
-        <TransformationsDrawer />
       </main>
 
       {/* Hoisted Modals */}

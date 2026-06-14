@@ -3,12 +3,13 @@ import { TransformationsToolbar } from './TransformationsToolbar';
 import { ArrowContextMenu, GlobalContextMenu } from './TransformationsContextMenus';
 import type { ButtonId, ContextMenuType } from './TransformationsTypes';
 import { useMidi } from '../../midi/MIDIProvider';
+import { motion } from 'framer-motion';
 
 export const TransformationsDrawer = () => {
   const { configs, updateButtonConfig, listenMode, setListenMode, learnState, startLearnMode, stopLearnMode, uiVelocity = 80 } = useMidi();
   const [pressed, setPressed] = useState<Record<ButtonId, boolean>>({} as any);
   const [contextMenu, setContextMenu] = useState<ContextMenuType>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false); // Start closed
+  const [isDrawerOpen, setIsDrawerOpen] = useState(true); // Start open
 
   // --- HANDLERS: Buttons ---
 
@@ -160,11 +161,19 @@ export const TransformationsDrawer = () => {
   }, []);
 
   return (
-    <div className="relative w-full max-w-2xl mx-auto flex flex-col items-center pointer-events-none">
-      <div className="pointer-events-auto w-full flex flex-col items-center">
-      <div 
-        className={`w-full transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] z-10 flex flex-col items-center ${isDrawerOpen ? '-mt-10 translate-y-0' : '-mt-10 -translate-y-[155px]'}`}
-      >
+    <motion.div 
+      data-testid="transformations-drawer"
+      data-open={isDrawerOpen}
+      className="w-full flex flex-col items-center pointer-events-none"
+      initial={false}
+      animate={isDrawerOpen ? "open" : "closed"}
+      variants={{
+        open: { y: 0 },
+        closed: { y: "calc(-100% + 32px)" }
+      }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <div className="pointer-events-auto w-full max-w-2xl flex flex-col items-center">
         <TransformationsToolbar 
           isOpen={isDrawerOpen}
           onToggleTab={() => setIsDrawerOpen(prev => !prev)}
@@ -176,7 +185,6 @@ export const TransformationsDrawer = () => {
           onButtonContextMenu={handleButtonContextMenu}
           onBackgroundContextMenu={handleBackgroundContextMenu}
         />
-      </div>
 
       {/* Render Context Menus */}
       {contextMenu?.type === 'BUTTON' && (
@@ -208,6 +216,6 @@ export const TransformationsDrawer = () => {
         </div>
       )}
       </div>
-    </div>
+    </motion.div>
   );
 };

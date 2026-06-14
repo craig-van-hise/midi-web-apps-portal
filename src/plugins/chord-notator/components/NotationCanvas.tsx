@@ -828,6 +828,7 @@ const NotationCanvas: React.FC = () => {
                   if (idx !== -1) {
                       maybeCommit();
                       activeNotes.current.splice(idx, 1); // Toggle Off
+                      chordIdentityRef.current.isActive = false;
                       shouldAdd = false;
                   }
               }
@@ -871,6 +872,7 @@ const NotationCanvas: React.FC = () => {
               if (activeNotes.current.some(n => n.sourceMidi === note || n.note === note)) {
                   maybeCommit();
                   activeNotes.current = activeNotes.current.filter(n => n.sourceMidi !== note && n.note !== note);
+                  chordIdentityRef.current.isActive = false;
               }
           }
 
@@ -1318,6 +1320,7 @@ const NotationCanvas: React.FC = () => {
           e.preventDefault();
           commitState();
           activeNotes.current = activeNotes.current.filter(n => !selectedNoteIds.current.has(n.id));
+          chordIdentityRef.current.isActive = false;
           selectedNoteIds.current.clear();
           updateSpellings();
           updateActiveNotes?.([...activeNotes.current]);

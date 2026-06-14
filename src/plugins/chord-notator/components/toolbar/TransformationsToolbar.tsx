@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ButtonId, ButtonConfigMap } from './TransformationsTypes';
 import { Play, House } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export interface TransformationsToolbarProps {
   pressedButtons: Record<ButtonId, boolean>;
@@ -147,7 +148,7 @@ export const TransformationsToolbar: React.FC<TransformationsToolbarProps> = ({
 
   return (
     <div 
-      className="relative w-full py-8 flex flex-col items-center justify-center no-context-menu"
+      className="relative w-full pb-8 flex flex-col items-center justify-center no-context-menu"
       onContextMenu={onBackgroundContextMenu}
     >
       <div className="relative">
