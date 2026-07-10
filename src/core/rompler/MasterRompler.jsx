@@ -9,7 +9,7 @@ import { cn } from './utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import './rompler.css';
 
-export function MasterRompler({ isOpen, onToggle }) {
+export function MasterRompler({ isOpen, onToggle, hasStarted }) {
   const [power, setPower] = useState(true);
   const [instrument, setInstrument] = usePersistentState('rompler_instrument', 'piano');
   const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +31,7 @@ export function MasterRompler({ isOpen, onToggle }) {
 
   // Handle Power
   useEffect(() => {
-    if (power) {
+    if (power && hasStarted) {
       const start = async () => {
         setIsLoading(true);
         await audioEngine.init();
@@ -50,7 +50,7 @@ export function MasterRompler({ isOpen, onToggle }) {
     } else {
       audioEngine.releaseAll();
     }
-  }, [power]); // Only run on power toggle
+  }, [power, hasStarted]); // Run on power toggle or hasStarted transition
 
   // Handle Instrument change
   useEffect(() => {

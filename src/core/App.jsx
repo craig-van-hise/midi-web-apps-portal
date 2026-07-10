@@ -43,6 +43,7 @@ function getPluginComponent(appId) {
 
 
 function App() {
+  const [hasStarted, setHasStarted] = useState(false);
   const [activeApp, setActiveApp] = useState(appRegistry[0]);
   const [isPowerActive, setIsPowerActive] = useState(true);
   const [midiAccess, setMidiAccess] = useState(null);
@@ -56,6 +57,11 @@ function App() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [panicTriggerState, setPanicTriggerState] = useState(0);
   const midiBusRef = useRef(new EventTarget());
+
+  const handleAppStart = async () => {
+    setHasStarted(true);
+    await audioEngine.init();
+  };
 
   // Rompler states (for Phase 5)
   const [activeNotes, setActiveNotes] = useState([]);
@@ -92,6 +98,7 @@ function App() {
 
   // Set up Web MIDI API access
   useEffect(() => {
+    if (!hasStarted) return;
     let isMounted = true;
     if (typeof navigator !== 'undefined' && navigator.requestMIDIAccess) {
       navigator.requestMIDIAccess()
@@ -124,7 +131,7 @@ function App() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [hasStarted]);
 
   // Route physical MIDI messages to active plugin state via lock-free ring buffer
   useEffect(() => {
@@ -194,7 +201,7 @@ function App() {
               VV
             </span>
             <span className="text-[#45f3ff] text-xs font-semibold tracking-wider px-1.5 py-0.5 border border-[#45f3ff]/30 rounded">
-              PORTAL
+              MIDI PORTAL
             </span>
           </div>
           <span className="text-zinc-600">|</span>
@@ -352,9 +359,45 @@ function App() {
           <MasterRompler
             isOpen={isDrawerOpen}
             onToggle={() => setIsDrawerOpen(!isDrawerOpen)}
+            hasStarted={hasStarted}
           />
         </main>
       </div>
+
+      {!hasStarted && (
+        <div 
+          onClick={handleAppStart}
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#0b0c10]/95 backdrop-blur-md cursor-pointer select-none transition-all duration-500"
+        >
+          <div className="flex flex-col items-center max-w-md px-6 text-center space-y-6">
+            {/* Beautiful pulsing icon */}
+            <div className="relative flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-tr from-purple-600 to-cyan-500 p-0.5 animate-pulse shadow-[0_0_30px_rgba(168,85,247,0.4)]">
+              <div className="flex items-center justify-center w-full h-full rounded-full bg-[#0b0c10]">
+                <Icons.Music className="text-[#45f3ff] w-10 h-10 animate-bounce" />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <h2 className="text-3xl font-extrabold tracking-wider text-white">
+                VV <span className="bg-gradient-to-r from-[#45f3ff] to-purple-400 bg-clip-text text-transparent">MIDI PORTAL</span>
+              </h2>
+              <p className="text-zinc-400 text-sm font-medium tracking-wide">
+                Interactive Web MIDI & Audio Synthesizer Host
+              </p>
+            </div>
+
+            <div className="pt-4">
+              <span className="px-6 py-3 rounded-full border border-[#45f3ff]/40 bg-[#45f3ff]/10 text-[#45f3ff] font-semibold text-sm uppercase tracking-widest hover:bg-[#45f3ff]/20 hover:border-[#45f3ff] transition-all shadow-[0_0_15px_rgba(69,243,255,0.2)]">
+                Click Anywhere to Start
+              </span>
+            </div>
+            
+            <p className="text-zinc-500 text-xs mt-4">
+              Initializes Tone.js AudioContext & requests MIDI permissions
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -4,6 +4,26 @@ import React from 'react';
 import mockDummyPlugin from '../plugins/DummyPlugin';
 import App from './App';
 import { appRegistry } from '../config/appRegistry';
+import { audioEngine } from './rompler/engine';
+
+vi.mock('./rompler/engine', () => ({
+  audioEngine: {
+    init: vi.fn().mockResolvedValue(undefined),
+    noteOn: vi.fn(),
+    releaseNote: vi.fn(),
+    loadInstrument: vi.fn().mockResolvedValue(undefined),
+    setVolume: vi.fn(),
+    setPan: vi.fn(),
+    setReverbWet: vi.fn(),
+    setTuningOffset: vi.fn(),
+    setAttack: vi.fn(),
+    setDecay: vi.fn(),
+    setSustain: vi.fn(),
+    setRelease: vi.fn(),
+    getMeterLevels: vi.fn().mockReturnValue({ l: -100, r: -100 }),
+    releaseAll: vi.fn(),
+  }
+}));
 
 let capturedMidiBus = null;
 let capturedOnMidiOut = null;
@@ -116,6 +136,12 @@ describe('App Portal Monolith Harness Tests', () => {
 
   it('verifies global MIDI input message dispatches midi event to midiBus', async () => {
     render(<App />);
+
+    // Dismiss overlay to enable MIDI
+    const overlay = screen.getByText(/click anywhere to start/i);
+    await act(async () => {
+      fireEvent.click(overlay);
+    });
 
     // Click second item to mount DummyPlugin / MockMidiTransposer
     const transposerSidebarItem = screen.getByRole('heading', { name: 'VV | MIDI Transposer', level: 3 });
@@ -268,6 +294,12 @@ describe('App Portal Monolith Harness Tests', () => {
 
     render(<App />);
 
+    // Dismiss overlay to enable MIDI
+    const overlay = screen.getByText(/click anywhere to start/i);
+    await act(async () => {
+      fireEvent.click(overlay);
+    });
+
     // Wait for the select element to populate and select 'device-0'
     const select = await screen.findByLabelText(/midi input source/i);
     await waitFor(() => {
@@ -317,6 +349,12 @@ describe('App Portal Monolith Harness Tests', () => {
 
     render(<App />);
 
+    // Dismiss overlay to enable MIDI
+    const overlay = screen.getByText(/click anywhere to start/i);
+    await act(async () => {
+      fireEvent.click(overlay);
+    });
+
     const select = await screen.findByLabelText(/midi input source/i);
     await waitFor(() => {
       expect(select.value).toBe('device-0');
@@ -340,4 +378,52 @@ describe('App Portal Monolith Harness Tests', () => {
 
     expect(select.value).toBe('device-1');
   });
+
+  it('Given the app mounts, When the user has not clicked, Assert the overlay is visible and audioEngine.init has not been called', () => {
+    audioEngine.init.mockClear();
+    render(<App />);
+    const overlay = screen.getByText(/click anywhere to start/i);
+    expect(overlay).toBeInTheDocument();
+    expect(audioEngine.init).not.toHaveBeenCalled();
+  });
+
+  it('Given the overlay is visible, When the user clicks it, Assert the overlay disappears and audioEngine.init is called', async () => {
+    audioEngine.init.mockClear();
+    render(<App />);
+    const overlay = screen.getByText(/click anywhere to start/i);
+    expect(overlay).toBeInTheDocument();
+    
+    await act(async () => {
+      fireEvent.click(overlay);
+    });
+    
+    expect(overlay).not.toBeInTheDocument();
+    expect(audioEngine.init).toHaveBeenCalled();
+  });
+
+  it('Given the app renders, Assert the text "MIDI PORTAL" is present in the header', () => {
+    render(<App />);
+    const portalTextElements = screen.getAllByText('MIDI PORTAL');
+    expect(portalTextElements.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('Given hasStarted is false, When the component renders, Assert navigator.requestMIDIAccess is NOT called', () => {
+    navigator.requestMIDIAccess.mockClear();
+    render(<App />);
+    expect(navigator.requestMIDIAccess).not.toHaveBeenCalled();
+  });
+
+  it('Given hasStarted transitions to true, When the useEffect runs, Assert navigator.requestMIDIAccess IS called', async () => {
+    navigator.requestMIDIAccess.mockClear();
+    render(<App />);
+    expect(navigator.requestMIDIAccess).not.toHaveBeenCalled();
+
+    const overlay = screen.getByText(/click anywhere to start/i);
+    await act(async () => {
+      fireEvent.click(overlay);
+    });
+
+    expect(navigator.requestMIDIAccess).toHaveBeenCalled();
+  });
 });
+
