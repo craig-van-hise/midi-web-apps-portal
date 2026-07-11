@@ -194,7 +194,7 @@ const NotationCanvas: React.FC = () => {
       const isSelected = selectedNoteIds.current.has(noteData.id);
       if (!isSelected) return noteData;
       const index = activeNotes.current.findIndex(n => n.id === noteData.id);
-      return { ...noteData, note: safePitches[index], spellingOverride: undefined };
+      return { ...noteData, note: safePitches[index], sourceMidi: safePitches[index], spellingOverride: undefined };
     });
 
     const uniqueNotes: typeof updatedNotes = [];
@@ -262,7 +262,7 @@ const NotationCanvas: React.FC = () => {
       const isSelected = selectedNoteIds.current.has(noteData.id);
       if (!isSelected) return noteData;
       const index = activeNotes.current.findIndex(n => n.id === noteData.id);
-      return { ...noteData, note: safePitches[index], spellingOverride: undefined };
+      return { ...noteData, note: safePitches[index], sourceMidi: safePitches[index], spellingOverride: undefined };
     });
 
     const uniqueNotes: typeof updatedNotes = [];
@@ -363,7 +363,7 @@ const NotationCanvas: React.FC = () => {
       const index = activeNotes.current.findIndex(n => n.id === noteData.id);
       const note = safePitches[index];
       const targetPC = note % 12;
-      return { ...noteData, note, spellingOverride: pcOverrides[targetPC] };
+      return { ...noteData, note, sourceMidi: note, spellingOverride: pcOverrides[targetPC] };
     });
 
     const uniqueNotes: typeof updatedNotes = [];

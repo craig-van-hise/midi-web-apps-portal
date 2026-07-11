@@ -3,9 +3,13 @@
 
 /Users/vv2024/Documents/Repos - vv2024/MIDI/WebApps/midi-web-apps-portal
 ├── # Prompts
-|  ├── # 57.md
-|  ├── # 58.md
-|  ├── # 59.md
+|  ├── # 89.md
+|  ├── # 90.md
+|  ├── # 91.md
+|  ├── # 92.md
+|  ├── # 93.md
+|  ├── # 94.md
+|  ├── # Regenerate PC_LUT.md
 |  └── xOlder
 |     ├── # 0.md
 |     ├── # 1.md
@@ -59,14 +63,47 @@
 |     ├── # 54.md
 |     ├── # 55.md
 |     ├── # 56.md
+|     ├── # 57.md
+|     ├── # 58.md
+|     ├── # 59.md
 |     ├── # 6.md
+|     ├── # 60.md
+|     ├── # 61.md
+|     ├── # 62.md
+|     ├── # 63.md
+|     ├── # 64.md
+|     ├── # 65.md
+|     ├── # 66.md
+|     ├── # 67.md
+|     ├── # 68.md
+|     ├── # 69.md
 |     ├── # 7.md
+|     ├── # 70.md
+|     ├── # 71.md
+|     ├── # 72.md
+|     ├── # 73.md
+|     ├── # 74.md
+|     ├── # 75.md
+|     ├── # 76.md
+|     ├── # 77.md
+|     ├── # 78.md
+|     ├── # 79.md
 |     ├── # 8.md
+|     ├── # 80.md
+|     ├── # 81.md
+|     ├── # 82.md
+|     ├── # 83.md
+|     ├── # 84.md
+|     ├── # 85.md
+|     ├── # 86.md
+|     ├── # 87.md
+|     ├── # 88.md
 |     └── # 9.md
 ├── 2026-05-25_REPO_REPORT.md
 ├── DropFolder
 ├── FAILURE_REPORT_LATENCY.md
 ├── GUIDE_TO_LOW_LATENCY.md
+├── HOW_TO_GEN_PCS_LUT_DAT.md
 ├── PROJECT_CONTEXT_BUNDLE.md
 ├── PROJECT_STATE.md
 ├── README.md
@@ -91,7 +128,8 @@
 |  |  └── vite.svg
 |  ├── config
 |  |  ├── appRegistry.js
-|  |  └── appRegistry.test.js
+|  |  ├── appRegistry.test.js
+|  |  └── indexHtml.test.js
 |  ├── core
 |  |  ├── App.css
 |  |  ├── App.jsx
@@ -147,6 +185,7 @@
 |  |  |  |  ├── MIDIProvider.test.tsx
 |  |  |  |  └── MIDIProvider.tsx
 |  |  |  └── utils
+|  |  |     ├── binaryLut.test.ts
 |  |  |     ├── binaryLut.ts
 |  |  |     ├── chordSpeller.test.ts
 |  |  |     ├── chordSpeller.ts
@@ -157,6 +196,22 @@
 |  |  |     └── symmetricalSpeller.ts
 |  |  ├── dynamics
 |  |  |  └── index.tsx
+|  |  ├── midi-tonnetz
+|  |  |  ├── components
+|  |  |  |  ├── Modal.tsx
+|  |  |  |  ├── TitleBar.tsx
+|  |  |  |  ├── TonnetzGrid.test.tsx
+|  |  |  |  ├── TonnetzGrid.tsx
+|  |  |  |  ├── TonnetzGridContainer.test.tsx
+|  |  |  |  ├── TonnetzGridContainer.tsx
+|  |  |  |  └── navigation
+|  |  |  ├── constants.ts
+|  |  |  ├── hooks
+|  |  |  |  ├── useTonnetzTransform.test.ts
+|  |  |  |  └── useTonnetzTransform.ts
+|  |  |  ├── index.test.tsx
+|  |  |  ├── index.tsx
+|  |  |  └── types.ts
 |  |  ├── midi-transposer
 |  |  |  ├── components
 |  |  |  |  ├── KeySplitKeyboard.jsx
@@ -182,11 +237,12 @@
 |  |        └── matrix.css
 |  ├── setupTests.js
 |  └── utils
-└── vite.config.js
+├── vite.config.js
+└── wrappingLogic.js
 
-directory: 992 file: 8235
+directory: 988 file: 8225
 
-ignored: directory (144)
+ignored: directory (139)
 
 
 [2K[1G
@@ -211,7 +267,8 @@ midi-web-apps-portal/
 │   │   └── vite.svg
 │   ├── config/
 │   │   ├── appRegistry.js
-│   │   └── appRegistry.test.js
+│   │   ├── appRegistry.test.js
+│   │   └── indexHtml.test.js
 │   ├── core/
 │   │   ├── rompler/
 │   │   │   ├── Knob.jsx
@@ -234,6 +291,7 @@ midi-web-apps-portal/
 │   │   ├── DummyPlugin.test.jsx
 │   │   ├── chord-notator/
 │   │   ├── dynamics/
+│   │   ├── midi-tonnetz/
 │   │   ├── midi-transposer/       # Two-zone keyboard transposer & output filter
 │   │   ├── monitor/
 │   │   └── pitch-class-matrix/
@@ -250,8 +308,8 @@ midi-web-apps-portal/
 
 ## 2. Tech Stack
 - **Core Framework**: React 19, Vite 8, ES6+ JavaScript
-- **Styling**: Tailwind CSS v4, Custom CSS variables, Framer Motion (via `motion`)
-- **Audio Engine**: Highly-optimized native `Tone.js` and `smplr` instances with algorithmic routing (e.g. parallel Aux sends for `Tone.Freeverb` to avoid convolver FFT block latency).
+- **Styling**: Tailwind CSS v4, Custom CSS variables, Framer Motion (via `motion`), Radix UI Primitives (e.g. Radix Tooltip)
+- **Audio Engine**: Highly-optimized native `Tone.js` and `smplr` instances with algorithmic routing (parallel Aux sends for reverb to bypass convolver latency).
 - **State Management**: React State & Context, Zustand
 - **Utility / Performance**: Lodash (`lodash/throttle`) for frame-rate limiting UI rendering.
 - **Icons**: Lucide React
@@ -259,17 +317,18 @@ midi-web-apps-portal/
 
 ## 3. Current System Capabilities
 - **Audio Engine**: Low-latency `Tone.js` + `smplr` architecture running on the main thread (`Tone.context.lookAhead = 0.002`). Executes MIDI triggers synchronously (bypassing React batching) and typecasts raw MIDI notes to Scientific Pitch Notation strings (`"C4"`) using `Tone.Frequency` before trigger. Reverb is configured as a parallel send/return bus using algorithmic `Tone.Freeverb` (Schroeder reverberator) to avoid FFT convolution delays.
-- **Tracking/MIDI Engine**: Global Web MIDI API manager routing hardware input directly down to active plugins using a ref-based `EventTarget` Event Bus, avoiding React batching issues and stuck notes.
+- **Tracking/MIDI Engine**: Global Web MIDI API manager routing hardware input directly down to active plugins using a ref-based `EventTarget` Event Bus, avoiding React batching issues and stuck notes. MIDI permissions status pill is integrated directly in the `TitleBar` to prevent visual layout overlaps.
 - **Visualizer & Processing Plugins**:
-  - **Chord Notator**: Renders sheet music notation from live MIDI inputs in real-time.
+  - **Chord Notator**: Renders sheet music notation from live MIDI inputs in real-time. Features a transformation engine with real-time UI/Audio integration, Radix-based accessible tooltips, and physical/virtual keyswitch binds for rapid trigger control.
+  - **MIDI Tonnetz**: Euler-Riemann topological grid for visualizing harmonic relationships.
   - **Pitch Class Matrix**: Maps and quantizes incoming MIDI notes to specific roots and scales.
   - **MIDI Monitor**: Logs live MIDI status messages, note numbers, velocities, and CC changes.
   - **MIDI Dynamics**: Multi-mode velocity curve adjustment with compression, expansion, and custom thresholds.
   - **MIDI Transposer**: Splits keyboard ranges into interactive draggable zones (Play and Transpose) supporting polyphonic chord transpositions, customizable transpose hold sustain modes (Sustain Original, Immediate Cutoff, Retrigger), and range-limit filtering on outputs.
-- **UI State Logic**: Frame-rate limited state sync (~30fps / 32ms) separating instant synchronous audio triggers from asynchronous rendering cycles.
+- **UI State Logic**: Frame-rate limited state sync (~30fps / 32ms) separating instant synchronous audio triggers from asynchronous rendering cycles. Z-index layering is strictly audited to resolve popovers, settings overlays, and interactive canvas components.
 
 ## 4. Recent Evolution
-We abandoned the experimental custom `SharedArrayBuffer` / `AudioWorklet` architecture due to severe DSP regressions (clipping, clicking, poor gain staging). We reverted to a heavily optimized `Tone.js` + `smplr` framework that achieves the same low-latency floor by eliminating convolution reverb in favor of `Tone.Freeverb` and optimizing MIDI/audio routing on the main thread.
+We completed integration of Radix Tooltip primitives into the Chord Notator transformations toolbar, resolved settings overlay z-index stacking issues, and implemented physical keyboard keyswitches to toggle chord transformations on-the-fly. We also refined the WebMIDI permission flows, moving the status indicator pill into the host TitleBar. Prior to this, we solidified the Tone.js + smplr low-latency architecture, completely bypassing AudioWorklet overhead.
 
 
 ### FILE: README.md
@@ -301,16 +360,13 @@ Currently, the portal hosts the following integrated plugins:
 4.  **VV | MIDI Dynamics:** Applies custom processing curves, compression, and expansion to MIDI velocity data.
 5.  **VV | MIDI Note Range Filter:** Blocks, wraps, or limits MIDI notes that fall outside of a user-defined keyboard range.
 6.  **VV | MIDI Transposer:** Splits keyboards into Play and Transpose zones with polyphonic transposing and output filtering.
+7.  **VV | MIDI Tonnetz:** Euler-Riemann topological grid for visualizing harmonic relationships.
 
 ---
 
-## 🛠️ Architecture & Directory Structure
-
-The repository is strictly divided into the core host environment and isolated plugins to prevent code bleed and ensure easy porting to desktop/VST formats in the future.
-
 ```text
 midi-web-apps-portal/
-├── public/                 # Global assets and fonts
+├── public/                 # Global assets, PCS_LUT.dat database, and fonts
 ├── src/
 │   ├── config/             # App Registry and configurations
 │   │   └── appRegistry.js
@@ -323,6 +379,7 @@ midi-web-apps-portal/
 │   └── plugins/            # THE HEADLESS MODULES
 │       ├── chord-notator/  # Renders sheet music notation
 │       ├── dynamics/       # Velocity compressor/expander
+│       ├── midi-tonnetz/   # Topological grid for visualizing harmonic relationships
 │       ├── midi-transposer/ # Two-zone keyboard transposer & output filter
 │       ├── monitor/        # MIDI log/event visualizer
 │       └── pitch-class-matrix/ # Scale and root quantizer

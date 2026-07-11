@@ -1,9 +1,13 @@
 
 /Users/vv2024/Documents/Repos - vv2024/MIDI/WebApps/midi-web-apps-portal
 ├── # Prompts
-|  ├── # 57.md
-|  ├── # 58.md
-|  ├── # 59.md
+|  ├── # 89.md
+|  ├── # 90.md
+|  ├── # 91.md
+|  ├── # 92.md
+|  ├── # 93.md
+|  ├── # 94.md
+|  ├── # Regenerate PC_LUT.md
 |  └── xOlder
 |     ├── # 0.md
 |     ├── # 1.md
@@ -57,14 +61,47 @@
 |     ├── # 54.md
 |     ├── # 55.md
 |     ├── # 56.md
+|     ├── # 57.md
+|     ├── # 58.md
+|     ├── # 59.md
 |     ├── # 6.md
+|     ├── # 60.md
+|     ├── # 61.md
+|     ├── # 62.md
+|     ├── # 63.md
+|     ├── # 64.md
+|     ├── # 65.md
+|     ├── # 66.md
+|     ├── # 67.md
+|     ├── # 68.md
+|     ├── # 69.md
 |     ├── # 7.md
+|     ├── # 70.md
+|     ├── # 71.md
+|     ├── # 72.md
+|     ├── # 73.md
+|     ├── # 74.md
+|     ├── # 75.md
+|     ├── # 76.md
+|     ├── # 77.md
+|     ├── # 78.md
+|     ├── # 79.md
 |     ├── # 8.md
+|     ├── # 80.md
+|     ├── # 81.md
+|     ├── # 82.md
+|     ├── # 83.md
+|     ├── # 84.md
+|     ├── # 85.md
+|     ├── # 86.md
+|     ├── # 87.md
+|     ├── # 88.md
 |     └── # 9.md
 ├── 2026-05-25_REPO_REPORT.md
 ├── DropFolder
 ├── FAILURE_REPORT_LATENCY.md
 ├── GUIDE_TO_LOW_LATENCY.md
+├── HOW_TO_GEN_PCS_LUT_DAT.md
 ├── PROJECT_CONTEXT_BUNDLE.md
 ├── PROJECT_STATE.md
 ├── README.md
@@ -89,7 +126,8 @@
 |  |  └── vite.svg
 |  ├── config
 |  |  ├── appRegistry.js
-|  |  └── appRegistry.test.js
+|  |  ├── appRegistry.test.js
+|  |  └── indexHtml.test.js
 |  ├── core
 |  |  ├── App.css
 |  |  ├── App.jsx
@@ -145,6 +183,7 @@
 |  |  |  |  ├── MIDIProvider.test.tsx
 |  |  |  |  └── MIDIProvider.tsx
 |  |  |  └── utils
+|  |  |     ├── binaryLut.test.ts
 |  |  |     ├── binaryLut.ts
 |  |  |     ├── chordSpeller.test.ts
 |  |  |     ├── chordSpeller.ts
@@ -155,6 +194,22 @@
 |  |  |     └── symmetricalSpeller.ts
 |  |  ├── dynamics
 |  |  |  └── index.tsx
+|  |  ├── midi-tonnetz
+|  |  |  ├── components
+|  |  |  |  ├── Modal.tsx
+|  |  |  |  ├── TitleBar.tsx
+|  |  |  |  ├── TonnetzGrid.test.tsx
+|  |  |  |  ├── TonnetzGrid.tsx
+|  |  |  |  ├── TonnetzGridContainer.test.tsx
+|  |  |  |  ├── TonnetzGridContainer.tsx
+|  |  |  |  └── navigation
+|  |  |  ├── constants.ts
+|  |  |  ├── hooks
+|  |  |  |  ├── useTonnetzTransform.test.ts
+|  |  |  |  └── useTonnetzTransform.ts
+|  |  |  ├── index.test.tsx
+|  |  |  ├── index.tsx
+|  |  |  └── types.ts
 |  |  ├── midi-transposer
 |  |  |  ├── components
 |  |  |  |  ├── KeySplitKeyboard.jsx
@@ -180,11 +235,12 @@
 |  |        └── matrix.css
 |  ├── setupTests.js
 |  └── utils
-└── vite.config.js
+├── vite.config.js
+└── wrappingLogic.js
 
-directory: 992 file: 8235
+directory: 988 file: 8225
 
-ignored: directory (144)
+ignored: directory (139)
 
 
 [2K[1G

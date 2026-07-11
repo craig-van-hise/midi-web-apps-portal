@@ -509,7 +509,7 @@ describe('NotationCanvas - Hardware Reconciliation (Phase 2 fix)', () => {
     });
   });
 
-  test('should successfully remove a note via NoteOff even if it was computationally transposed', async () => {
+  test('should not remove a transposed note via NoteOff of the original pitch (decoupled)', async () => {
     render(<NotationCanvas />);
 
     const container = document.querySelector('.notation-canvas-container')!;
@@ -561,13 +561,13 @@ describe('NotationCanvas - Hardware Reconciliation (Phase 2 fix)', () => {
       }));
     });
 
-    // 5. Assert the note is removed (Hardware Garbage Collection)
+    // 5. Assert the note is NOT removed (decoupled)
     await waitFor(() => {
-      expect(document.querySelector('[data-midi-note="65"]')).not.toBeInTheDocument();
+      expect(document.querySelector('[data-midi-note="65"]')).toBeInTheDocument();
     });
   });
 
-  test('should prevent duplicate note creation if a NoteOn for sourceMidi is received after transposition', async () => {
+  test('should allow note creation if a NoteOn for original pitch is received after transposition', async () => {
     render(<NotationCanvas />);
 
     const container = document.querySelector('.notation-canvas-container')!;
@@ -610,9 +610,9 @@ describe('NotationCanvas - Hardware Reconciliation (Phase 2 fix)', () => {
       }));
     });
 
-    // 4. Assert that no second note is added (Duplicate Prevention)
+    // 4. Assert that a second note is added (original pitch re-entry allowed)
     await waitFor(() => {
-      expect(document.querySelectorAll('.notation-note-container').length).toBe(1);
+      expect(document.querySelectorAll('.notation-note-container').length).toBe(2);
     });
   });
 

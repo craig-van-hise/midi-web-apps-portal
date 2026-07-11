@@ -263,5 +263,49 @@ describe('NotationCanvas - PRP #94 Bug Fixes', () => {
       expect(pill).toHaveTextContent('Em');
     });
   });
+
+  test('Test Case 1 (Toggle Re-entry): Chromatic shift updates sourceMidi and does not block re-entry', async () => {
+    const { container } = setupCanvas();
+
+    // 1. Send Note On (Physical C4 / 60)
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x90, 60, 100]), isVirtual: false }
+      }));
+    });
+
+    // 2. Select the note
+    const activeNoteElement = await screen.findByTestId('note-container-60');
+    expect(activeNoteElement).toBeInTheDocument();
+    
+    // Simulating selection
+    act(() => {
+      fireEvent.pointerDown(activeNoteElement);
+    });
+
+    // 3. Shift Chromatically Up (Semitone Up: 60 -> 61, Db4)
+    act(() => {
+      window.dispatchEvent(new CustomEvent('APP_TRANSFORM', {
+        detail: { type: 'SEMI_UP', stepSize: 1, isUiClick: true }
+      }));
+    });
+
+    // 4. Wait for Db4 (61) to be rendered
+    const shiftedNoteElement = await screen.findByTestId('note-container-61');
+    expect(shiftedNoteElement).toBeInTheDocument();
+
+    // 5. Send Virtual Note On for C4 / 60 (Toggle Mode / Virtual Event)
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x90, 60, 100]), isVirtual: true }
+      }));
+    });
+
+    // 6. Assert that C4 is successfully added alongside Db4, and is not blocked
+    await waitFor(() => {
+      expect(screen.queryByTestId('note-container-60')).toBeInTheDocument();
+      expect(screen.queryByTestId('note-container-61')).toBeInTheDocument();
+    });
+  });
 });
 

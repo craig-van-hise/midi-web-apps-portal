@@ -36,7 +36,7 @@ const BLACK_KEY_WIDTH = 11;
 const BLACK_KEY_HEIGHT = 56;
 
 export const Piano88: React.FC = () => {
-    const { dispatchVirtualMidi, lut, keySignature, selectedNotes, buttonConfigs } = useMidi() as any;
+    const { dispatchVirtualMidi, lut, keySignature, selectedNotes, buttonConfigs, updateButtonConfig, clearMidiMapping } = useMidi() as any;
 
     const displayedPitches = React.useRef<Set<number>>(new Set());
     const currentSpellings = React.useRef<{ note: number; spelling: string }[]>([]);
@@ -160,7 +160,27 @@ export const Piano88: React.FC = () => {
                 <div
                     key={`w-${note}`}
                     id={`pk88-${note}`}
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+                    onDragEnter={(e) => { e.currentTarget.style.outline = '3px solid #aa3bff'; e.currentTarget.style.outlineOffset = '-3px'; }}
+                    onDragLeave={(e) => { e.currentTarget.style.outline = ''; }}
+                    onDrop={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.style.outline = '';
+                        try {
+                            const data = JSON.parse(e.dataTransfer.getData('application/json'));
+                            if (data.type === 'KEYSWITCH_DRAG' && data.buttonId) {
+                                updateButtonConfig(data.buttonId, { midiNote: note });
+                            }
+                        } catch (err) {}
+                    }}
                     onPointerDown={(e) => {
+                        if (e.altKey) {
+                            e.preventDefault();
+                            (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+                            const assignedId = Object.keys(buttonConfigs).find(id => buttonConfigs[id]?.midiNote === note);
+                            if (assignedId) clearMidiMapping(assignedId);
+                            return; // Halt standard note triggering
+                        }
                         (e.target as HTMLElement).releasePointerCapture(e.pointerId);
                         const offsetY = e.nativeEvent.offsetY;
                         const height = (e.target as HTMLElement).clientHeight;
@@ -191,7 +211,30 @@ export const Piano88: React.FC = () => {
                     {hasRightBlack && (
                         <div
                             id={`pk88-${note + 1}`}
+                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'copy'; }}
+                            onDragEnter={(e) => { e.stopPropagation(); e.currentTarget.style.outline = '2px solid #aa3bff'; e.currentTarget.style.outlineOffset = '-2px'; }}
+                            onDragLeave={(e) => { e.stopPropagation(); e.currentTarget.style.outline = ''; }}
+                            onDrop={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.currentTarget.style.outline = '';
+                                try {
+                                    const data = JSON.parse(e.dataTransfer.getData('application/json'));
+                                    if (data.type === 'KEYSWITCH_DRAG' && data.buttonId) {
+                                        updateButtonConfig(data.buttonId, { midiNote: note + 1 });
+                                    }
+                                } catch (err) {}
+                            }}
                             onPointerDown={(e) => {
+                                if (e.altKey) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+                                    const targetNote = note + 1;
+                                    const assignedId = Object.keys(buttonConfigs).find(id => buttonConfigs[id]?.midiNote === targetNote);
+                                    if (assignedId) clearMidiMapping(assignedId);
+                                    return; // Halt standard note triggering
+                                }
                                 e.stopPropagation();
                                 (e.target as HTMLElement).releasePointerCapture(e.pointerId);
                                 const offsetY = e.nativeEvent.offsetY;

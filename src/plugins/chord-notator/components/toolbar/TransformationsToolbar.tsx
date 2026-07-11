@@ -74,6 +74,54 @@ export const TransformationsToolbar: React.FC<TransformationsToolbarProps> = ({
     return (
       <button
         className={`relative ${btnSize} flex items-center justify-center outline-none select-none touch-none group bg-transparent border-none p-0 focus:outline-none`}
+        draggable={true}
+        onDragStart={(e) => {
+           if (!e.altKey) {
+               e.preventDefault();
+               return;
+           }
+           e.dataTransfer.effectAllowed = 'copy';
+           e.dataTransfer.setData('application/json', JSON.stringify({ type: 'KEYSWITCH_DRAG', buttonId: id }));
+
+           // Construct Custom Drag Ghost
+           const clone = e.currentTarget.cloneNode(true) as HTMLElement;
+           clone.style.position = 'absolute';
+           clone.style.top = '-1000px';
+           clone.style.left = '-1000px';
+           clone.style.background = 'white';
+           clone.style.borderRadius = '8px';
+           clone.style.boxShadow = '0 10px 25px rgba(0,0,0,0.3)';
+           clone.style.overflow = 'visible';
+           
+           // Append "+" Badge
+           const badge = document.createElement('div');
+           badge.style.position = 'absolute';
+           badge.style.top = '-8px';
+           badge.style.right = '-8px';
+           badge.style.width = '20px';
+           badge.style.height = '20px';
+           badge.style.backgroundColor = '#aa3bff';
+           badge.style.color = 'white';
+           badge.style.borderRadius = '50%';
+           badge.style.display = 'flex';
+           badge.style.alignItems = 'center';
+           badge.style.justifyContent = 'center';
+           badge.style.fontSize = '14px';
+           badge.style.fontWeight = 'bold';
+           badge.style.border = '2px solid white';
+           badge.textContent = '+';
+           
+           clone.appendChild(badge);
+           document.body.appendChild(clone);
+           
+           // Set Ghost Image centered on the cursor
+           e.dataTransfer.setDragImage(clone, clone.offsetWidth / 2, clone.offsetHeight / 2);
+           
+           // Cleanup DOM immediately after snapshot
+           setTimeout(() => {
+               if (document.body.contains(clone)) document.body.removeChild(clone);
+           }, 0);
+        }}
         onPointerDown={(e) => {
           if (e.button !== 0 || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
           onButtonDown(id, e);
@@ -172,6 +220,54 @@ export const TransformationsToolbar: React.FC<TransformationsToolbarProps> = ({
       <button
         className={baseClasses}
         style={style}
+        draggable={true}
+        onDragStart={(e) => {
+           if (!e.altKey) {
+               e.preventDefault();
+               return;
+           }
+           e.dataTransfer.effectAllowed = 'copy';
+           e.dataTransfer.setData('application/json', JSON.stringify({ type: 'KEYSWITCH_DRAG', buttonId: id }));
+
+           // Construct Custom Drag Ghost
+           const clone = e.currentTarget.cloneNode(true) as HTMLElement;
+           clone.style.position = 'absolute';
+           clone.style.top = '-1000px';
+           clone.style.left = '-1000px';
+           clone.style.background = 'white';
+           clone.style.borderRadius = '8px';
+           clone.style.boxShadow = '0 10px 25px rgba(0,0,0,0.3)';
+           clone.style.overflow = 'visible';
+           
+           // Append "+" Badge
+           const badge = document.createElement('div');
+           badge.style.position = 'absolute';
+           badge.style.top = '-8px';
+           badge.style.right = '-8px';
+           badge.style.width = '20px';
+           badge.style.height = '20px';
+           badge.style.backgroundColor = '#aa3bff';
+           badge.style.color = 'white';
+           badge.style.borderRadius = '50%';
+           badge.style.display = 'flex';
+           badge.style.alignItems = 'center';
+           badge.style.justifyContent = 'center';
+           badge.style.fontSize = '14px';
+           badge.style.fontWeight = 'bold';
+           badge.style.border = '2px solid white';
+           badge.textContent = '+';
+           
+           clone.appendChild(badge);
+           document.body.appendChild(clone);
+           
+           // Set Ghost Image centered on the cursor
+           e.dataTransfer.setDragImage(clone, clone.offsetWidth / 2, clone.offsetHeight / 2);
+           
+           // Cleanup DOM immediately after snapshot
+           setTimeout(() => {
+               if (document.body.contains(clone)) document.body.removeChild(clone);
+           }, 0);
+        }}
         onPointerDown={(e) => {
           if (e.button !== 0 || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
           onButtonDown(id, e);

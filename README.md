@@ -25,16 +25,13 @@ Currently, the portal hosts the following integrated plugins:
 4.  **VV | MIDI Dynamics:** Applies custom processing curves, compression, and expansion to MIDI velocity data.
 5.  **VV | MIDI Note Range Filter:** Blocks, wraps, or limits MIDI notes that fall outside of a user-defined keyboard range.
 6.  **VV | MIDI Transposer:** Splits keyboards into Play and Transpose zones with polyphonic transposing and output filtering.
+7.  **VV | MIDI Tonnetz:** Euler-Riemann topological grid for visualizing harmonic relationships.
 
 ---
 
-## 🛠️ Architecture & Directory Structure
-
-The repository is strictly divided into the core host environment and isolated plugins to prevent code bleed and ensure easy porting to desktop/VST formats in the future.
-
 ```text
 midi-web-apps-portal/
-├── public/                 # Global assets and fonts
+├── public/                 # Global assets, PCS_LUT.dat database, and fonts
 ├── src/
 │   ├── config/             # App Registry and configurations
 │   │   └── appRegistry.js
@@ -47,6 +44,7 @@ midi-web-apps-portal/
 │   └── plugins/            # THE HEADLESS MODULES
 │       ├── chord-notator/  # Renders sheet music notation
 │       ├── dynamics/       # Velocity compressor/expander
+│       ├── midi-tonnetz/   # Topological grid for visualizing harmonic relationships
 │       ├── midi-transposer/ # Two-zone keyboard transposer & output filter
 │       ├── monitor/        # MIDI log/event visualizer
 │       └── pitch-class-matrix/ # Scale and root quantizer
