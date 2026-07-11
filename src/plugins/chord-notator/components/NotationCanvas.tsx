@@ -248,7 +248,7 @@ const NotationCanvas: React.FC = () => {
     const proposedPitches = activeNotes.current.map((noteData) => {
       const isSelected = selectedNoteIds.current.has(noteData.id);
       if (!isSelected) return noteData.note;
-      return transposeDiatonically(noteData.note, delta * stepSize, keyName, lutRef.current);
+      return transposeDiatonically(noteData.note, delta * stepSize, keyName, lutRef.current, noteData.spellingString);
     });
 
     const safePitches = enforcePianoRange(proposedPitches, originalPitches);

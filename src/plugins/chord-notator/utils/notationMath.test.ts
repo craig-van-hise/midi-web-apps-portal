@@ -104,6 +104,17 @@ describe('Phase 4: Diatonic Transposition Engine', () => {
         expect(result).toBe(59); // MIDI 59
     });
 
+    it('should transpose spelling-aware notes (C, F, Bb, Eb) down by 1 in C Major to (B, E, A, D)', () => {
+        // C4 (60) with spelling "C" -> B3 (59)
+        expect(transposeDiatonically(60, -1, "C Major", undefined, "C")).toBe(59);
+        // F4 (65) with spelling "F" -> E4 (64)
+        expect(transposeDiatonically(65, -1, "C Major", undefined, "F")).toBe(64);
+        // Bb4 (70) with spelling "Bb" -> A4 (69)
+        expect(transposeDiatonically(70, -1, "C Major", undefined, "Bb")).toBe(69);
+        // Eb4 (63) with spelling "Eb" -> D4 (62)
+        expect(transposeDiatonically(63, -1, "C Major", undefined, "Eb")).toBe(62);
+    });
+
     it('should handle variable-cardinality scales (Major Pentatonic) correctly', () => {
         const mockLut = new Array(4096).fill(null);
         mockLut[661] = {

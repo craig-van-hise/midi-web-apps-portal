@@ -339,8 +339,50 @@ export function assignXLevels(notes: NotePosition[]): NotePosition[] {
  * @param lut - Optional PCS LUT.
  * @returns The new MIDI note, clamped between 0 and 127.
  */
-export function transposeDiatonically(currentMidi: number, delta: number, keySignature: string, lut?: any[]): number {
+export function transposeDiatonically(currentMidi: number, delta: number, keySignature: string, lut?: any[], currentSpelling?: string): number {
     const diatonicMap = getDiatonicMap(keySignature, lut);
+
+    if (currentSpelling) {
+        const letterMatch = currentSpelling.match(/^[A-G]/);
+        if (letterMatch) {
+            const letter = letterMatch[0];
+            const step = ["C", "D", "E", "F", "G", "A", "B"].indexOf(letter);
+
+            if (step !== -1) {
+                const pitchClass = currentMidi % 12;
+                let baseOctave = Math.floor(currentMidi / 12) - 1;
+
+                // Boundary correction for C/B splits
+                const targetLetterPC = [0, 2, 4, 5, 7, 9, 11][step];
+                if (pitchClass === 11 && targetLetterPC === 0) baseOctave += 1;
+                if (pitchClass === 0 && targetLetterPC === 11) baseOctave -= 1;
+
+                const absoluteStep = (baseOctave * 7) + step;
+                const newAbsoluteStep = absoluteStep + delta;
+
+                const newOctave = Math.floor(newAbsoluteStep / 7);
+                const newStep = ((newAbsoluteStep % 7) + 7) % 7;
+
+                let targetPC = -1;
+                for (const [pc, data] of diatonicMap.entries()) {
+                    if (data.step === newStep) {
+                        targetPC = pc;
+                        break;
+                    }
+                }
+
+                if (targetPC !== -1) {
+                    let finalOctave = newOctave;
+                    const newTargetLetterPC = [0, 2, 4, 5, 7, 9, 11][newStep];
+                    if (targetPC === 11 && newTargetLetterPC === 0) finalOctave -= 1;
+                    if (targetPC === 0 && newTargetLetterPC === 11) finalOctave += 1;
+
+                    const targetMidi = (finalOctave + 1) * 12 + targetPC;
+                    return Math.max(0, Math.min(127, targetMidi));
+                }
+            }
+        }
+    }
     
     const scaleMidiNotes: number[] = [];
     for (let m = 0; m <= 127; m++) {
