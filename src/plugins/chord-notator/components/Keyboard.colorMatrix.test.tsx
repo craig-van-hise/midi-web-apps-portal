@@ -2,7 +2,7 @@ import { render, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import Piano88 from './Keyboard';
 import { useMidi } from '../midi/MIDIProvider';
-import { vi } from 'vitest';
+import { describe, beforeEach, test, expect, vi } from 'vitest';
 
 vi.mock('../midi/MIDIProvider', () => ({
   useMidi: vi.fn(),
@@ -90,5 +90,98 @@ describe('Keyboard Color Matrix (Phase 3 TDD Checkpoint)', () => {
 
     // E (not selected): should be blue (#3b82f6)
     expect(labelE).toHaveStyle('color: rgb(59, 130, 246)');
+  });
+
+  test('Phase 11 Test Case 1: Given a mapped keyswitch, Assert the background color reflects the stronger color-mix percentage', async () => {
+    const initialConfigs = {
+      SEMI_UP: { stepSize: 1, midiChannel: 1, midiNote: 60 },
+    };
+
+    (useMidi as any).mockReturnValue({
+      keySignature: 'C Major',
+      lut: Array(4096).fill(null),
+      selectedNotes: [],
+      buttonConfigs: initialConfigs,
+    });
+
+    render(<Piano88 />);
+
+    const key60 = document.getElementById('pk88-60');
+    expect(key60).toBeInTheDocument();
+    expect(key60?.style.backgroundColor).toContain('color-mix(in srgb, rgb(236, 72, 153) 45%, rgb(255, 255, 255))');
+  });
+
+  test('Phase 11 Test Case 2: Given a mapped keyswitch is pressed, When updateKeyVisuals88 is called with any color string, Assert the element\'s background color changes to the full ksColor hex', async () => {
+    const initialConfigs = {
+      SEMI_UP: { stepSize: 1, midiChannel: 1, midiNote: 60 },
+    };
+
+    (useMidi as any).mockReturnValue({
+      keySignature: 'C Major',
+      lut: Array(4096).fill(null),
+      selectedNotes: [],
+      buttonConfigs: initialConfigs,
+    });
+
+    render(<Piano88 />);
+
+    const key60 = document.getElementById('pk88-60');
+    expect(key60).toBeInTheDocument();
+    expect(key60?.dataset.ksColor).toBe('#ec4899');
+
+    // Simulate active noteOn with non-default purple highlight color (#aa3bff)
+    const { updateKeyVisuals88 } = await import('./Keyboard');
+    act(() => {
+      updateKeyVisuals88(60, '#aa3bff');
+    });
+
+    expect(key60?.style.backgroundColor).toBe('rgb(236, 72, 153)'); // rgb representation of #ec4899
+  });
+
+  test('Phase 11 Test Case 1: Given a keyswitch is physically held, When the React useEffect loop calls updateKeyVisuals88(note, \'\'), Assert the function overrides the empty string with ksColor and keeps the key illuminated', async () => {
+    const initialConfigs = {
+      SEMI_UP: { stepSize: 1, midiChannel: 1, midiNote: 60 },
+    };
+
+    (useMidi as any).mockReturnValue({
+      keySignature: 'C Major',
+      lut: Array(4096).fill(null),
+      selectedNotes: [],
+      buttonConfigs: initialConfigs,
+    });
+
+    render(<Piano88 />);
+
+    const key60 = document.getElementById('pk88-60');
+    expect(key60).toBeInTheDocument();
+
+    // Dispatch APP_BUTTON_PRESS_ON to physically hold it
+    act(() => {
+      window.dispatchEvent(new CustomEvent('APP_BUTTON_PRESS_ON', {
+        detail: { buttonId: 'SEMI_UP', midiNote: 60 }
+      }));
+    });
+
+    // Check if background color flares to full ksColor (#ec4899)
+    expect(key60?.style.backgroundColor).toBe('rgb(236, 72, 153)');
+
+    // Call updateKeyVisuals88 directly with empty string (simulating rogue React loop turn-off)
+    const { updateKeyVisuals88 } = await import('./Keyboard');
+    act(() => {
+      updateKeyVisuals88(60, '');
+    });
+
+    // The key must remain illuminated!
+    expect(key60?.style.backgroundColor).toBe('rgb(236, 72, 153)');
+
+    // Now release it
+    act(() => {
+      window.dispatchEvent(new CustomEvent('APP_BUTTON_PRESS_OFF', {
+        detail: { buttonId: 'SEMI_UP', midiNote: 60 }
+      }));
+    });
+
+    // Should return to idle wash
+    expect(key60?.style.backgroundColor).toContain('color-mix(in srgb, rgb(236, 72, 153) 45%, rgb(255, 255, 255))');
   });
 });

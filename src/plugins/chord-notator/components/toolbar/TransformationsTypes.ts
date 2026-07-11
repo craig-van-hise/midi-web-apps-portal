@@ -11,6 +11,21 @@ export type ButtonId =
   | 'PLAY' 
   | 'HOME';
 
+export const TRANSFORM_SCHEMA = {
+  SEMI_UP: { color: '#ec4899', icon: 'ArrowUp' },
+  SEMI_DOWN: { color: '#ec4899', icon: 'ArrowDown' },
+  KEY_UP: { color: '#f97316', icon: 'ArrowUp' },
+  KEY_DOWN: { color: '#f97316', icon: 'ArrowDown' },
+  ROT_UP: { color: '#84cc16', icon: 'ArrowUp' },
+  ROT_DOWN: { color: '#84cc16', icon: 'ArrowDown' },
+  OCT_UP: { color: '#06b6d4', icon: 'ArrowUp' },
+  OCT_DOWN: { color: '#06b6d4', icon: 'ArrowDown' },
+  PLAY: { color: '#10b981', icon: 'Play' },
+  HOME: { color: '#10b981', icon: 'House' }
+} as const;
+
+export const TRANSFORMATION_SCHEMA = TRANSFORM_SCHEMA;
+
 export interface ButtonConfig {
   stepSize: number; // 1-12
   midiChannel: number;

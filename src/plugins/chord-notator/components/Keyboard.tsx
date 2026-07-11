@@ -1,6 +1,27 @@
 import React from 'react';
 import { useMidi } from '../midi/MIDIProvider';
 import { getChordSpelling } from '../utils/chordSpeller';
+import { TRANSFORMATION_SCHEMA } from './toolbar/TransformationsTypes';
+import type { ButtonConfig, ButtonId } from './toolbar/TransformationsTypes';
+
+// Absolute hardware tracking for keyswitches, immune to React lifecycle
+const activeKeyswitchesTracker = new Set<number>();
+if (typeof window !== 'undefined') {
+    window.addEventListener('APP_BUTTON_PRESS_ON', (e: any) => {
+        const note = e.detail?.midiNote;
+        if (note !== undefined) {
+            activeKeyswitchesTracker.add(note);
+            updateKeyVisuals88(note, 'ks_active');
+        }
+    });
+    window.addEventListener('APP_BUTTON_PRESS_OFF', (e: any) => {
+        const note = e.detail?.midiNote;
+        if (note !== undefined) {
+            activeKeyswitchesTracker.delete(note);
+            updateKeyVisuals88(note, '');
+        }
+    });
+}
 
 /**
  * 88-Key MIDI Keyboard (A0 to C8)
@@ -15,7 +36,7 @@ const BLACK_KEY_WIDTH = 11;
 const BLACK_KEY_HEIGHT = 56;
 
 export const Piano88: React.FC = () => {
-    const { dispatchVirtualMidi, lut, keySignature, selectedNotes } = useMidi() as any;
+    const { dispatchVirtualMidi, lut, keySignature, selectedNotes, buttonConfigs } = useMidi() as any;
 
     const displayedPitches = React.useRef<Set<number>>(new Set());
     const currentSpellings = React.useRef<{ note: number; spelling: string }[]>([]);
@@ -69,9 +90,13 @@ export const Piano88: React.FC = () => {
                 for (let n = 21; n <= 108; n++) {
                     const isActive = displayedPitches.current.has(n);
                     const isSelected = selectedNotes?.includes(n);
+                    const isKsHeld = activeKeyswitchesTracker.has(n);
+
                     let color = '';
-                    if (isSelected) color = '#aa3bff';
+                    if (isKsHeld) color = 'ks_active';
+                    else if (isSelected) color = '#aa3bff';
                     else if (isActive) color = '#3b82f6';
+
                     updateKeyVisuals88(n, color);
                 }
             }
@@ -95,6 +120,23 @@ export const Piano88: React.FC = () => {
         }
         updateSpelledNotesStrip(currentSpellings.current, selectedNotes);
     }, [selectedNotes]);
+
+    // Keep keyswitch badges updated when button configs (MIDI mappings) change
+    React.useEffect(() => {
+        const noteToConfigMap = new Map<number, any>();
+        if (buttonConfigs) {
+            Object.entries(buttonConfigs).forEach(([id, cfg]: [string, any]) => {
+                if (cfg && cfg.midiNote !== -1) {
+                    noteToConfigMap.set(cfg.midiNote, { ...cfg, id });
+                }
+            });
+        }
+        
+        for (let note = 21; note <= 108; note++) {
+            const configForNote = noteToConfigMap.get(note) || null;
+            updateKeyswitchBadge(note, configForNote);
+        }
+    }, [buttonConfigs]);
 
     const handleKeyInteraction = (note: number, isDown: boolean, velocity: number = 100) => {
         if (isDown) {
@@ -245,25 +287,49 @@ export const updateKeyVisuals88 = (note: number, color: string) => {
     if (!el) return;
 
     const isBlack = [1, 3, 6, 8, 10].includes(note % 12);
+    const ksColor = el.dataset.ksColor;
+    
+    // The function checks the hardware truth itself
+    const isKsHeld = activeKeyswitchesTracker.has(note); 
 
-    if (color) {
-        el.style.backgroundColor = color;
-        el.style.boxShadow = `inset 0 -5px 10px rgba(0,0,0,0.1), 0 0 12px ${color}`;
+    let finalColor = color;
+    
+    // ARMOR: If it's a keyswitch and it's physically held, FORCE IT ON.
+    // This prevents rogue React effects from turning it off with a '' command.
+    if (ksColor && isKsHeld) {
+        finalColor = ksColor; 
+    } else if (ksColor && color && color !== '') {
+        finalColor = ksColor; // Allow standard UI clicks to trigger it
+    }
+
+    if (finalColor && finalColor !== '') {
+        // ACTIVE STATE
+        el.style.backgroundColor = finalColor;
+        el.style.boxShadow = `inset 0 -5px 10px rgba(0,0,0,0.1), 0 0 12px ${finalColor}`;
         if (isBlack) {
             el.style.zIndex = '11';
-            el.style.borderBottom = '1px solid #000'; // Lengthen highlight: only 1px outline remains
+            el.style.borderBottom = '1px solid #000';
             el.style.borderLeft = '1px solid #333';
             el.style.borderRight = '1px solid #333';
+            if (ksColor) el.style.borderTop = `2px solid ${ksColor}`;
         }
     } else {
-        el.style.backgroundColor = isBlack ? '#444' : '#fff'; // Darker gray for the top surface
+        // IDLE STATE
+        if (ksColor) {
+            el.style.backgroundColor = isBlack 
+                ? `color-mix(in srgb, ${ksColor} 60%, #444444)` 
+                : `color-mix(in srgb, ${ksColor} 45%, #ffffff)`;
+            el.style.borderTop = `2px solid ${ksColor}`;
+        } else {
+            el.style.backgroundColor = isBlack ? '#444' : '#fff';
+            el.style.borderTop = 'none';
+        }
         el.style.boxShadow = 'none';
         if (isBlack) {
             el.style.zIndex = '10';
-            el.style.borderBottom = '6px solid #000'; // Restore standard black key "front portion"
+            el.style.borderBottom = '6px solid #000';
             el.style.borderLeft = '1px solid #333';
             el.style.borderRight = '1px solid #333';
-            el.style.borderTop = 'none';
         }
     }
 };
@@ -332,6 +398,87 @@ const getNoteX = (note: number): number => {
     }
     const isBlack = [1, 3, 6, 8, 10].includes(note % 12);
     return isBlack ? (whiteKeysBefore * 18) : (whiteKeysBefore * 18 + 9);
+};
+
+const iconSvgMap: Record<string, string> = {
+    ArrowUp: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>',
+    ArrowDown: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
+    Play: '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="black" stroke="black" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>',
+    House: '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'
+};
+
+/**
+ * Renders or removes a semantic badge overlay on a physical key
+ */
+export const updateKeyswitchBadge = (note: number, config: (ButtonConfig & { id: ButtonId }) | null) => {
+    const el = document.getElementById(`pk88-${note}`);
+    if (!el) return;
+
+    // Strict DOM Cleanup: IMMEDIATELY remove any existing badges
+    el.querySelectorAll('.ks-badge').forEach(b => b.remove());
+
+    const isBlack = [1, 3, 6, 8, 10].includes(note % 12);
+
+    if (!config || config.midiNote === -1 || !config.id) {
+        delete el.dataset.ksColor;
+        delete el.dataset.keyswitchColor;
+        el.style.backgroundColor = isBlack ? '#444' : '#fff';
+        el.style.borderTop = 'none';
+        return;
+    }
+
+    const schema = TRANSFORMATION_SCHEMA[config.id];
+    if (!schema) {
+        delete el.dataset.ksColor;
+        delete el.dataset.keyswitchColor;
+        el.style.backgroundColor = isBlack ? '#444' : '#fff';
+        el.style.borderTop = 'none';
+        return;
+    }
+
+    const hex = schema.color;
+    el.dataset.ksColor = hex;
+
+    // Apply stronger color-mix background and top border
+    el.style.backgroundColor = isBlack 
+        ? `color-mix(in srgb, ${hex} 60%, #444444)` 
+        : `color-mix(in srgb, ${hex} 45%, #ffffff)`;
+    el.style.borderTop = `2px solid ${hex}`;
+
+    // Create badge div (strictly 14px x 14px)
+    const badge = document.createElement('div');
+    badge.className = 'ks-badge';
+    badge.style.position = 'absolute';
+    badge.style.left = '50%';
+    badge.style.transform = 'translateX(-50%)';
+    badge.style.width = '14px';
+    badge.style.height = '14px';
+    badge.style.borderRadius = '50%';
+    badge.style.backgroundColor = '#ffffff';
+    badge.style.border = '1.5px solid #000';
+    badge.style.color = '#000';
+    badge.style.display = 'flex';
+    badge.style.alignItems = 'center';
+    badge.style.justifyContent = 'center';
+    badge.style.zIndex = '20';
+    badge.style.pointerEvents = 'none';
+
+    if (isBlack) {
+        badge.style.bottom = '4px';
+        badge.style.top = 'auto';
+    } else {
+        badge.style.bottom = '12px';
+        badge.style.top = 'auto';
+    }
+
+    const iconSvg = iconSvgMap[schema.icon];
+    if (iconSvg) {
+        badge.innerHTML = iconSvg;
+    } else {
+        badge.innerHTML = '';
+    }
+
+    el.appendChild(badge);
 };
 
 export default Piano88;

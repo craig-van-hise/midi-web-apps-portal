@@ -36,6 +36,7 @@ interface MidiContextType {
   listenMode: boolean;
   setListenMode: (b: boolean | ((val: boolean) => boolean)) => void;
   configs: ButtonConfigMap;
+  buttonConfigs: ButtonConfigMap;
   setConfigs: (configs: ButtonConfigMap | ((prev: ButtonConfigMap) => ButtonConfigMap)) => void;
   updateButtonConfig: (id: ButtonId, updates: Partial<ButtonConfig>) => void;
   clearAllMidiMappings: () => void;
@@ -251,7 +252,7 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const stepSize = config?.stepSize || 1;
 
         if (isNoteOn) {
-          window.dispatchEvent(new CustomEvent('APP_BUTTON_PRESS_ON', { detail: { buttonId } }));
+          window.dispatchEvent(new CustomEvent('APP_BUTTON_PRESS_ON', { detail: { buttonId, midiNote: note } }));
           // History Actions
           if (['UNDO', 'REDO'].includes(buttonId)) {
             window.dispatchEvent(new CustomEvent('APP_HISTORY', { detail: { action: buttonId } }));
@@ -288,7 +289,7 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }));
           }
         } else if (isNoteOff) {
-          window.dispatchEvent(new CustomEvent('APP_BUTTON_PRESS_OFF', { detail: { buttonId } }));
+          window.dispatchEvent(new CustomEvent('APP_BUTTON_PRESS_OFF', { detail: { buttonId, midiNote: note } }));
           if (buttonId === 'PLAY') {
             window.dispatchEvent(new CustomEvent('APP_PLAY_OFF'));
           } else if (buttonId === 'HOME') {
@@ -534,6 +535,7 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         listenMode,
         setListenMode,
         configs,
+        buttonConfigs: configs,
         setConfigs,
         updateButtonConfig,
         clearAllMidiMappings,

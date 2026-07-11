@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ButtonId, ButtonConfigMap } from './TransformationsTypes';
+import { TRANSFORMATION_SCHEMA } from './TransformationsTypes';
 import { Play, House } from 'lucide-react';
 import { motion } from 'framer-motion';
 import * as Tooltip from '@radix-ui/react-tooltip';
@@ -42,6 +43,8 @@ export const TransformationsToolbar: React.FC<TransformationsToolbarProps> = ({
     const config = configs[id];
     const showStep = config?.stepSize > 1;
     const btnSize = 'w-7 h-7'; // Scaled down by 50% from w-14
+    const isAssigned = config?.midiNote !== undefined && config?.midiNote !== -1;
+    const schemaColor = TRANSFORMATION_SCHEMA[id].color;
 
     // SVG Path for a block arrow
     const arrowPath = "M50 5 L90 45 L70 45 L70 95 L30 95 L30 45 L10 45 Z";
@@ -52,7 +55,7 @@ export const TransformationsToolbar: React.FC<TransformationsToolbarProps> = ({
 
     // Dynamic Styles for the SVG element (Visuals)
     const svgStyle: React.CSSProperties = {
-      filter: isPressed ? 'none' : 'drop-shadow(2px 2px 0px #000)',
+      filter: isPressed ? 'none' : `drop-shadow(2px 2px 0px ${isAssigned ? schemaColor : '#000'})`,
       transform: pressTransform,
       transition: transition,
       cursor: 'pointer',
@@ -64,8 +67,8 @@ export const TransformationsToolbar: React.FC<TransformationsToolbarProps> = ({
       transition: transition,
     };
 
-    const fillColor = isPressed ? '#22c55e' : 'white'; 
-    const strokeColor = isLearning ? '#facc15' : 'black';
+    const fillColor = isPressed ? (isAssigned ? schemaColor : '#22c55e') : 'white'; 
+    const strokeColor = isLearning ? '#facc15' : (isAssigned ? schemaColor : '#000');
     const strokeWidth = isLearning ? 8 : 4;
 
     return (
@@ -138,24 +141,37 @@ export const TransformationsToolbar: React.FC<TransformationsToolbarProps> = ({
       </div>
     );
   };
+
   // Render Circular/Square Action Button
   const renderActionBtn = (id: ButtonId, Icon: React.FC<any>) => {
     const isPressed = pressedButtons[id];
     const isLearning = learnModeTarget === id;
+    const config = configs[id];
+    const isAssigned = config?.midiNote !== undefined && config?.midiNote !== -1;
+    const schemaColor = TRANSFORMATION_SCHEMA[id].color;
     
-    let baseClasses = "relative w-8 h-8 flex items-center justify-center border-[1.5px] border-black rounded-lg transition-all select-none focus:outline-none touch-none "; 
+    let baseClasses = "relative w-8 h-8 flex items-center justify-center border-[1.5px] rounded-lg transition-all select-none focus:outline-none touch-none "; 
     
+    const style: React.CSSProperties = {};
     if (isPressed) {
-      baseClasses += "bg-green-400 shadow-none translate-y-[2px] translate-x-[2px] ";
+      baseClasses += "shadow-none translate-y-[2px] translate-x-[2px] ";
+      style.backgroundColor = isAssigned ? schemaColor : '#22c55e';
+      style.borderColor = isAssigned ? schemaColor : 'black';
     } else if (isLearning) {
-      baseClasses += "bg-white animate-pulse shadow-[0_0_15px_rgba(250,204,21,0.9)] z-10 border-yellow-400 "; 
+      baseClasses += "bg-white animate-pulse shadow-[0_0_15px_rgba(250,204,21,0.9)] z-10 ";
+      style.borderColor = '#facc15';
     } else {
-      baseClasses += "bg-white hover:bg-gray-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] ";
+      baseClasses += "bg-white hover:bg-gray-100 active:shadow-none active:translate-y-[2px] active:translate-x-[2px] ";
+      style.borderColor = isAssigned ? schemaColor : 'black';
+      style.boxShadow = isAssigned 
+        ? `2px 2px 0px 0px ${schemaColor}`
+        : '2px 2px 0px 0px rgba(0,0,0,1)';
     }
 
     return (
       <button
         className={baseClasses}
+        style={style}
         onPointerDown={(e) => {
           if (e.button !== 0 || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
           onButtonDown(id, e);
@@ -165,7 +181,11 @@ export const TransformationsToolbar: React.FC<TransformationsToolbarProps> = ({
         onContextMenu={(e) => onButtonContextMenu(e, id)}
         aria-label={`${id} transformation`}
       >
-        <Icon className={`w-4 h-4 text-black pointer-events-none ${isPressed ? 'transform scale-95' : ''}`} strokeWidth={3} />
+        <Icon 
+          className={`w-4 h-4 pointer-events-none ${isPressed ? 'transform scale-95' : ''}`} 
+          strokeWidth={3} 
+          style={{ stroke: isPressed ? 'white' : (isAssigned ? schemaColor : 'black') }}
+        />
       </button>
     );
   };

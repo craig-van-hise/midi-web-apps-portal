@@ -133,4 +133,52 @@ describe('TransformationsToolbar', () => {
     
     vi.useRealTimers();
   });
+
+  it('Given a button config with midiNote = -1, Assert it uses standard black outline. Given a button config with midiNote = 60, Assert it uses the schema color outline', () => {
+    const unassignedConfigs: ButtonConfigMap = {
+      ...mockConfigs,
+      SEMI_UP: { stepSize: 1, midiChannel: 1, midiNote: -1 },
+    };
+    
+    const { container, rerender } = render(
+      <TransformationsToolbar 
+        pressedButtons={mockPressedButtons}
+        configs={unassignedConfigs}
+        onButtonDown={vi.fn()}
+        onButtonUp={vi.fn()}
+        onButtonContextMenu={vi.fn()}
+        onBackgroundContextMenu={vi.fn()}
+        learnModeTarget={null}
+        isOpen={true}
+        onToggleTab={vi.fn()}
+      />
+    );
+    
+    // Check SEMI_UP button stroke (should be #000 since it is unassigned)
+    const arrowBtnUnassigned = container.querySelector('button[aria-label="SEMI_UP transformation"] path');
+    expect(arrowBtnUnassigned).toHaveAttribute('stroke', '#000');
+
+    // Rerender with SEMI_UP assigned to midiNote = 60
+    const assignedConfigs: ButtonConfigMap = {
+      ...mockConfigs,
+      SEMI_UP: { stepSize: 1, midiChannel: 1, midiNote: 60 },
+    };
+
+    rerender(
+      <TransformationsToolbar 
+        pressedButtons={mockPressedButtons}
+        configs={assignedConfigs}
+        onButtonDown={vi.fn()}
+        onButtonUp={vi.fn()}
+        onButtonContextMenu={vi.fn()}
+        onBackgroundContextMenu={vi.fn()}
+        learnModeTarget={null}
+        isOpen={true}
+        onToggleTab={vi.fn()}
+      />
+    );
+
+    const arrowBtnAssigned = container.querySelector('button[aria-label="SEMI_UP transformation"] path');
+    expect(arrowBtnAssigned).toHaveAttribute('stroke', '#ec4899'); // SEMI_UP color in schema
+  });
 });
