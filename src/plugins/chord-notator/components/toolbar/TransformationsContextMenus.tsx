@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import type { ButtonConfig, ButtonId } from './TransformationsTypes';
 import { GraduationCap, Volume2, Trash2 } from 'lucide-react';
 import { useMidi } from '../../midi/MIDIProvider';
@@ -24,9 +25,9 @@ export const ArrowContextMenu: React.FC<ArrowMenuProps> = ({
   const isActionBtn = buttonId === 'PLAY' || buttonId === 'HOME';
   const { clearMidiMapping, startLearnMode } = useMidi();
 
-  return (
+  return createPortal(
     <div 
-      className="fixed z-50 bg-white border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] p-0 w-64 text-sm font-mono"
+      className="fixed z-[9999] bg-white border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] p-0 w-64 text-sm font-mono"
       style={{ top: position.y, left: position.x }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -46,7 +47,7 @@ export const ArrowContextMenu: React.FC<ArrowMenuProps> = ({
             <input 
               type="range" 
               min="1" 
-              max="12" 
+              max="127" 
               step="1"
               value={config.stepSize}
               onChange={(e) => onUpdateConfig(buttonId, { stepSize: parseInt(e.target.value) })}
@@ -117,7 +118,8 @@ export const ArrowContextMenu: React.FC<ArrowMenuProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -141,9 +143,9 @@ export const GlobalContextMenu: React.FC<GlobalMenuProps> = ({
 }) => {
   const { clearAllMidiMappings, uiVelocity = 80, setUiVelocity } = useMidi();
 
-  return (
+  return createPortal(
     <div 
-      className="fixed z-50 bg-white border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] min-w-[220px] flex flex-col font-mono"
+      className="fixed z-[9999] bg-white border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] min-w-[220px] flex flex-col font-mono"
       style={{ top: position.y, left: position.x }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -154,44 +156,43 @@ export const GlobalContextMenu: React.FC<GlobalMenuProps> = ({
       {/* Learn Button */}
       <button 
         onClick={() => { onLearnStart(); onClose(); }}
-        className="text-left px-4 py-3 hover:bg-yellow-100 hover:pl-5 border-b border-black flex items-center gap-3 transition-all"
+        className="flex items-center gap-3 px-4 py-3 hover:bg-yellow-400 hover:text-black transition-colors border-b border-black text-left font-bold"
       >
-        <div className="w-8 h-8 flex items-center justify-center border border-black bg-white">
-            <GraduationCap className="w-5 h-5 text-black" strokeWidth={2.5} />
-        </div>
-        <span className="font-extrabold text-black uppercase text-sm">MIDI Learn</span>
+        <GraduationCap className="w-4 h-4" />
+        <span>LEARN MIDI KEYS</span>
       </button>
 
-      {/* Clear All Button */}
+      {/* Toggle Listen Mode */}
       <button 
-        onClick={() => { clearAllMidiMappings(); onClose(); }}
-        className="text-left px-4 py-3 hover:bg-red-100 hover:pl-5 border-b border-black flex items-center gap-3 transition-all"
+        onClick={() => { onToggleListen(); onClose(); }}
+        className="flex items-center justify-between px-4 py-3 hover:bg-yellow-400 hover:text-black transition-colors border-b border-black text-left font-bold"
       >
-        <div className="w-8 h-8 flex items-center justify-center border border-black bg-white">
-            <Trash2 className="w-5 h-5 text-red-600" strokeWidth={2.5} />
+        <div className="flex items-center gap-3">
+          <Volume2 className="w-4 h-4" />
+          <span>LISTEN MODE</span>
         </div>
-        <span className="font-extrabold text-red-600 uppercase text-sm">Clear All Mappings</span>
+        <span className={`px-2 py-0.5 text-[10px] font-bold border-2 border-black rounded ${settings.listenMode ? 'bg-green-400 text-black' : 'bg-white text-black'}`}>
+          {settings.listenMode ? 'ON' : 'OFF'}
+        </span>
       </button>
 
-      {/* Listen Toggle */}
+      {/* Clear All Mappings */}
       <button 
-        onClick={onToggleListen}
-        className="text-left px-4 py-3 hover:bg-gray-100 border-b border-black flex items-center gap-3 transition-colors group"
+        onClick={() => {
+          clearAllMidiMappings();
+          onClose();
+        }}
+        className="flex items-center gap-3 px-4 py-3 hover:bg-red-600 hover:text-white transition-colors border-b-2 border-black text-left font-bold text-red-600"
       >
-        <div className={`w-8 h-8 flex items-center justify-center border border-black ${settings.listenMode ? 'bg-green-500 text-white' : 'bg-white text-gray-400'}`}>
-             <Volume2 className="w-5 h-5" strokeWidth={2.5} />
-        </div>
-        <div className="flex flex-col">
-            <span className="font-extrabold text-black text-sm uppercase">Listen Mode</span>
-            <span className="text-[10px] text-gray-700 font-bold">{settings.listenMode ? 'ON' : 'OFF'}</span>
-        </div>
+        <Trash2 className="w-4 h-4" />
+        <span>Clear All Mappings</span>
       </button>
 
-      {/* Velocity Slider */}
-      <div className="p-4 bg-gray-50 flex flex-col">
-        <div className="flex justify-between mb-2 items-center">
-          <label className="font-bold uppercase text-xs text-black">UI Velocity</label>
-          <span className="bg-black text-white px-2 py-0.5 text-xs font-bold">{uiVelocity}</span>
+      {/* UI Velocity Slider in Context Menu */}
+      <div className="p-4 bg-gray-50 flex flex-col gap-2">
+        <div className="flex justify-between items-center text-xs font-bold">
+          <span className="uppercase">UI Velocity</span>
+          <span className="bg-black text-white px-2 py-0.5 text-[10px] font-bold font-mono">{uiVelocity}</span>
         </div>
         <input 
           type="range" 
@@ -207,6 +208,7 @@ export const GlobalContextMenu: React.FC<GlobalMenuProps> = ({
           <span>127</span>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

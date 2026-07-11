@@ -3,6 +3,12 @@ import { describe, it, expect, vi } from 'vitest';
 import { TransformationsToolbar } from './TransformationsToolbar';
 import type { ButtonId, ButtonConfigMap } from './TransformationsTypes';
 
+global.ResizeObserver = class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+
 const mockConfigs: ButtonConfigMap = {
   SEMI_UP: { stepSize: 1, midiChannel: 1, midiNote: 60 },
   SEMI_DOWN: { stepSize: 1, midiChannel: 1, midiNote: 61 },
@@ -84,5 +90,47 @@ describe('TransformationsToolbar', () => {
     expect(screen.getByText(/key/i)).toBeTruthy();
     expect(screen.getByText(/oct/i)).toBeTruthy();
     expect(screen.getByText(/rot/i)).toBeTruthy();
+  });
+
+  it('does not show a tooltip when hovering over an arrow button, but shows a tooltip when hovering over category label KEY', () => {
+    const { fireEvent, act } = require('@testing-library/react');
+    vi.useFakeTimers();
+    render(
+      <TransformationsToolbar 
+        pressedButtons={mockPressedButtons}
+        configs={mockConfigs}
+        onButtonDown={vi.fn()}
+        onButtonUp={vi.fn()}
+        onButtonContextMenu={vi.fn()}
+        onBackgroundContextMenu={vi.fn()}
+        learnModeTarget={null}
+        isOpen={true}
+        onToggleTab={vi.fn()}
+      />
+    );
+    
+    // Hover over an arrow button (e.g., SEMI_UP)
+    const arrowBtn = screen.getByLabelText('SEMI_UP transformation');
+    act(() => {
+      arrowBtn.dispatchEvent(new Event('pointermove', { bubbles: true }));
+      vi.advanceTimersByTime(400);
+    });
+    
+    expect(screen.queryByText('Transpose Chromatically (Semitones)')).toBeNull();
+    expect(screen.queryByText('Transpose Up (Chromatic / Semitones)')).toBeNull();
+    
+    // Hover over the 'key' label
+    const keyLabel = screen.getByText('key');
+    act(() => {
+      // Define a custom PointerEvent if PointerEvent is available or create a generic event with pointerType
+      const event = new Event('pointermove', { bubbles: true });
+      Object.defineProperty(event, 'pointerType', { value: 'mouse' });
+      keyLabel.dispatchEvent(event);
+      vi.advanceTimersByTime(400);
+    });
+    
+    expect(screen.getAllByText('Transpose Diatonically (Scale Degrees)').length).toBeGreaterThan(0);
+    
+    vi.useRealTimers();
   });
 });

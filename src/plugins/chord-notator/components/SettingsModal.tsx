@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useMidi } from '../midi/MIDIProvider';
 
 const getNoteName = (midi: number): string => {
@@ -21,15 +22,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   // Generate options from MIDI 48 (C3) to 72 (C5)
   const options = Array.from({ length: 72 - 48 + 1 }, (_, i) => 48 + i);
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div 
         className="absolute inset-0"
         onClick={onClose}
       />
       
       <div
-        className="relative z-[100] bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-sm shadow-2xl"
+        className="relative z-[9999] bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-sm shadow-2xl"
       >
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold dark:text-white">Settings</h2>
@@ -122,7 +123,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

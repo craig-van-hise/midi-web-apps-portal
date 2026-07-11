@@ -2,6 +2,14 @@ import React from 'react';
 import type { ButtonId, ButtonConfigMap } from './TransformationsTypes';
 import { Play, House } from 'lucide-react';
 import { motion } from 'framer-motion';
+import * as Tooltip from '@radix-ui/react-tooltip';
+
+const tooltipMap: Record<string, string> = {
+  'semi': 'Transpose Chromatically (Semitones)',
+  'key': 'Transpose Diatonically (Scale Degrees)',
+  'rot': 'Rotate Pitch Class Set (Inversions)',
+  'oct': 'Transpose by Octave'
+};
 
 export interface TransformationsToolbarProps {
   pressedButtons: Record<ButtonId, boolean>;
@@ -106,7 +114,23 @@ export const TransformationsToolbar: React.FC<TransformationsToolbarProps> = ({
   const renderArrowPair = (upId: ButtonId, downId: ButtonId, label: string) => {
     return (
       <div className="flex flex-col items-center gap-1.5 p-1.5 bg-gray-50 border border-gray-200 rounded-xl shadow-inner">
-        <span className="text-[10px] font-black uppercase tracking-wider text-gray-700 leading-none">{label}</span>
+        <Tooltip.Root>
+          <Tooltip.Trigger asChild>
+            <span className="text-[10px] font-black uppercase tracking-wider text-gray-700 leading-none cursor-help">
+              {label}
+            </span>
+          </Tooltip.Trigger>
+          <Tooltip.Portal>
+            <Tooltip.Content 
+              side="top" 
+              sideOffset={8}
+              className="z-[9999] bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-bold shadow-xl border border-gray-700 max-w-[200px] text-center pointer-events-none tracking-wide"
+            >
+              {tooltipMap[label.toLowerCase()]}
+              <Tooltip.Arrow className="fill-gray-900" />
+            </Tooltip.Content>
+          </Tooltip.Portal>
+        </Tooltip.Root>
         <div className="flex flex-col gap-1 mt-1">
           {renderArrowBtn(upId, 0)}
           {renderArrowBtn(downId, 180)}
@@ -147,53 +171,55 @@ export const TransformationsToolbar: React.FC<TransformationsToolbarProps> = ({
   };
 
   return (
-    <div 
-      className="relative w-full pb-8 flex flex-col items-center justify-center no-context-menu"
-      onContextMenu={onBackgroundContextMenu}
-    >
-      <div className="relative">
-        <div 
-          className="relative bg-white px-8 py-5 rounded-[2rem] border border-gray-200 shadow-[0_20px_40px_-5px_rgba(0,0,0,0.1),_0_8px_10px_-5px_rgba(0,0,0,0.05)] flex items-center gap-8 z-10"
-        >
-          {/* LEFT SIDE: ARROWS */}
-          <div className="flex gap-4">
-            {renderArrowPair('SEMI_UP', 'SEMI_DOWN', 'semi')}
-            {renderArrowPair('KEY_UP', 'KEY_DOWN', 'key')}
-            {renderArrowPair('ROT_UP', 'ROT_DOWN', 'rot')}
-            {renderArrowPair('OCT_UP', 'OCT_DOWN', 'oct')}
-          </div>
-
-          {/* DIVIDER */}
-          <div className="w-[2px] h-20 bg-gray-200 rounded-full" />
-
-          {/* RIGHT SIDE: ACTIONS */}
-          <div className="grid grid-cols-1 gap-3">
-            {renderActionBtn('PLAY', Play)}
-            {renderActionBtn('HOME', House)}
-          </div>
-        </div>
-        
-        {/* TAB AT BOTTOM CENTER */}
-        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 z-0">
-          <button 
-            aria-label="Toggle Drawer"
-            className="bg-white border text-gray-500 border-gray-200 border-t-0 px-6 py-1 rounded-b-xl shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] hover:bg-gray-50 transition-colors focus:outline-none"
-            onClick={(e) => {
-               e.stopPropagation();
-               onToggleTab();
-            }}
+    <Tooltip.Provider delayDuration={400}>
+      <div 
+        className="relative w-full pb-8 flex flex-col items-center justify-center no-context-menu"
+        onContextMenu={onBackgroundContextMenu}
+      >
+        <div className="relative">
+          <div 
+            className="relative bg-white px-8 py-5 rounded-[2rem] border border-gray-200 shadow-[0_20px_40px_-5px_rgba(0,0,0,0.1),_0_8px_10px_-5px_rgba(0,0,0,0.05)] flex items-center gap-8 z-10"
           >
-             <svg 
-               xmlns="http://www.w3.org/2000/svg" 
-               width="20" height="20" 
-               viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" 
-               className={`lucide lucide-chevron-down transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
-             >
-               <path d="m6 9 6 6 6-6"/>
-             </svg>
-          </button>
+            {/* LEFT SIDE: ARROWS */}
+            <div className="flex gap-4">
+              {renderArrowPair('SEMI_UP', 'SEMI_DOWN', 'semi')}
+              {renderArrowPair('KEY_UP', 'KEY_DOWN', 'key')}
+              {renderArrowPair('ROT_UP', 'ROT_DOWN', 'rot')}
+              {renderArrowPair('OCT_UP', 'OCT_DOWN', 'oct')}
+            </div>
+
+            {/* DIVIDER */}
+            <div className="w-[2px] h-20 bg-gray-200 rounded-full" />
+
+            {/* RIGHT SIDE: ACTIONS */}
+            <div className="grid grid-cols-1 gap-3">
+              {renderActionBtn('PLAY', Play)}
+              {renderActionBtn('HOME', House)}
+            </div>
+          </div>
+          
+          {/* TAB AT BOTTOM CENTER */}
+          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 z-0">
+            <button 
+              aria-label="Toggle Drawer"
+              className="bg-white border text-gray-500 border-gray-200 border-t-0 px-6 py-1 rounded-b-xl shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] hover:bg-gray-50 transition-colors focus:outline-none"
+              onClick={(e) => {
+                 e.stopPropagation();
+                 onToggleTab();
+              }}
+            >
+               <svg 
+                 xmlns="http://www.w3.org/2000/svg" 
+                 width="20" height="20" 
+                 viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" 
+                 className={`lucide lucide-chevron-down transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+               >
+                 <path d="m6 9 6 6 6-6"/>
+               </svg>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Tooltip.Provider>
   );
 };
