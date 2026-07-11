@@ -94,4 +94,20 @@ describe('TransformationsDrawer Integration', () => {
     
     dispatchSpy.mockRestore();
   });
+
+  it('dispatches APP_TRANSFORM_OFF when a transform button is released', () => {
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    render(<TransformationsDrawer />);
+    
+    const semiUpButton = screen.getByLabelText(/SEMI_UP transformation/i);
+    
+    // Simulate pointer down to press, then pointer up
+    fireEvent.pointerDown(semiUpButton, { pointerId: 1 });
+    fireEvent.pointerUp(semiUpButton, { pointerId: 1 });
+    
+    const transformOffCalls = dispatchSpy.mock.calls.filter(c => c[0].type === 'APP_TRANSFORM_OFF');
+    expect(transformOffCalls.length).toBeGreaterThan(0);
+    
+    dispatchSpy.mockRestore();
+  });
 });

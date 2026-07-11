@@ -31,34 +31,39 @@ export async function fetchBinaryLUT(url: string): Promise<(PCS_Entry | null)[]>
         const rowOffset = dataView.getUint32(12 + (i * 4), true);
         if (rowOffset === 0) continue;
 
-        const decimal = dataView.getUint32(rowOffset, true);
+        const decimal = dataView.getUint32(rowOffset + 0, true);
         const root_pc = dataView.getUint8(rowOffset + 4);
         const cardinality = dataView.getUint8(rowOffset + 5);
-        const chordTypeIdx = dataView.getUint16(rowOffset + 6, true);
-        const baseTriadIdx = dataView.getUint16(rowOffset + 8, true);
+        
+        // String Pool Indices
+        const chordTypeIdx = dataView.getUint16(rowOffset + 16, true);
+        const baseTriadIdx = dataView.getUint16(rowOffset + 20, true);
 
-        // Calculate intervals
-        // Find the next non-zero offset or the string pool offset to calculate interval count.
+        // Variable Length Array Counts
+        const chordIntervalsLen = dataView.getUint8(rowOffset + 44);
+        const rotatedIntervalsLen = dataView.getUint8(rowOffset + 45);
+        const scaleIntervalsLen = dataView.getUint8(rowOffset + 46);
+        const pitchClassSetLen = dataView.getUint8(rowOffset + 47);
+
+        // Variable Data Block starts at offset 64
+        let cursor = rowOffset + 64;
         
-        let nextOffset = stringPoolOffset;
-        for (let j = i + 1; j < rowsCount; j++) {
-            const off = dataView.getUint32(12 + (j * 4), true);
-            if (off !== 0) {
-                nextOffset = off;
-                break;
-            }
-        }
-        
-        const currentIntervalsCount = (nextOffset - (rowOffset + 10)) / 2;
+        // 1. Read chord_intervals (uint16)
         const chord_intervals: string[] = [];
-        
-        if (currentIntervalsCount > 0 && currentIntervalsCount < 24) { // Safety bound
-            for (let k = 0; k < currentIntervalsCount; k++) {
-                const idx = dataView.getUint16(rowOffset + 10 + (k * 2), true);
-                if (idx < stringPool.length) {
-                    chord_intervals.push(stringPool[idx]);
-                }
-            }
+        for (let k = 0; k < chordIntervalsLen; k++) {
+            const strIdx = dataView.getUint16(cursor, true);
+            if (strIdx < stringPool.length) chord_intervals.push(stringPool[strIdx]);
+            cursor += 2;
+        }
+
+        // 2. Skip rotated and scale intervals to advance cursor to pitch_class_set
+        cursor += (rotatedIntervalsLen * 2) + (scaleIntervalsLen * 2);
+
+        // 3. Read pitch_class_set (uint8)
+        const pitch_class_set: number[] = [];
+        for (let k = 0; k < pitchClassSetLen; k++) {
+            pitch_class_set.push(dataView.getUint8(cursor));
+            cursor += 1;
         }
 
         rows[decimal] = {
@@ -69,7 +74,7 @@ export async function fetchBinaryLUT(url: string): Promise<(PCS_Entry | null)[]>
             base_triad: (baseTriadIdx < stringPool.length) ? stringPool[baseTriadIdx] : "",
             base_7th: 0,
             chord_intervals,
-            pitch_class_set: []
+            pitch_class_set
         };
     }
 

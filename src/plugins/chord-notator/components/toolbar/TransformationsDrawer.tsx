@@ -64,8 +64,13 @@ export const TransformationsDrawer = () => {
   };
 
   const handleButtonUp = (id: ButtonId) => {
-    if (id === 'PLAY') window.dispatchEvent(new CustomEvent('APP_PLAY_OFF'));
-    if (id === 'HOME') window.dispatchEvent(new CustomEvent('APP_HOME_OFF'));
+    if (id === 'PLAY') {
+      window.dispatchEvent(new CustomEvent('APP_PLAY_OFF'));
+    } else if (id === 'HOME') {
+      window.dispatchEvent(new CustomEvent('APP_HOME_OFF'));
+    } else {
+      window.dispatchEvent(new CustomEvent('APP_TRANSFORM_OFF'));
+    }
     setPressed(prev => ({ ...prev, [id]: false }));
   };
 

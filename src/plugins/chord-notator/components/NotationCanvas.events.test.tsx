@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import NotationCanvas from './NotationCanvas';
 import { useMidi } from '../midi/MIDIProvider';
+import { audioEngine } from '../audio/engine';
 
 
 // Mock useMidi
@@ -25,6 +26,7 @@ vi.mock('../audio/engine', () => ({
     releaseAll: vi.fn(),
     noteOn: vi.fn(),
     noteOff: vi.fn(),
+    releaseNote: vi.fn(),
   },
 }));
 
@@ -130,5 +132,34 @@ describe('NotationCanvas Event Bridge', () => {
     
     // Also verify that setSelectedNotes was called with all IDs
     expect(mockSetSelectedNotes).toHaveBeenCalled();
+  });
+
+  it('sustains notes played via transform arrows and releases on APP_TRANSFORM_OFF', () => {
+    vi.useFakeTimers();
+    render(<NotationCanvas />);
+    
+    // Simulate MIDI notes added and selected
+    window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+      detail: { data: new Uint8Array([0x90, 60, 100]), timestamp: Date.now() }
+    }));
+    
+    // Select all notes and trigger transform
+    window.dispatchEvent(new CustomEvent('APP_TRANSFORM', {
+      detail: { type: 'SEMI_UP', stepSize: 1, isUiClick: true }
+    }));
+    
+    // Verify noteOn was called
+    expect(audioEngine.noteOn).toHaveBeenCalled();
+    
+    // Fast-forward time to verify note is NOT released automatically
+    vi.advanceTimersByTime(1000);
+    expect(audioEngine.releaseNote).not.toHaveBeenCalled();
+    
+    // Dispatch APP_TRANSFORM_OFF
+    window.dispatchEvent(new CustomEvent('APP_TRANSFORM_OFF'));
+    
+    // Verify note is released
+    expect(audioEngine.releaseNote).toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });

@@ -35,7 +35,7 @@ describe('TransformationsToolbar', () => {
     );
     const root = container.firstChild as HTMLElement;
     expect(root.className).toContain('w-full');
-    expect(root.className).toContain('py-8');
+    expect(root.className).toContain('pb-8');
     
     const inner = root.querySelector('.bg-white.rounded-\\[2rem\\]');
     expect(inner).toBeTruthy();

@@ -233,11 +233,6 @@ const NotationCanvas: React.FC = () => {
       transposedStrings.forEach(noteStr => {
           if (Tone.context.state === 'running') {
               try { audioEngine.noteOn(noteStr, uiVelocityRef.current / 127); } catch (e) { console.error(e); }
-              
-              // Auto-release after 500ms
-              setTimeout(() => {
-                  try { audioEngine.releaseNote(noteStr); } catch (e) {}
-              }, 500);
           }
       });
     }
@@ -306,11 +301,6 @@ const NotationCanvas: React.FC = () => {
       transposedStrings.forEach(noteStr => {
           if (Tone.context.state === 'running') {
               try { audioEngine.noteOn(noteStr, uiVelocityRef.current / 127); } catch (e) { console.error(e); }
-              
-              // Auto-release after 500ms
-              setTimeout(() => {
-                  try { audioEngine.releaseNote(noteStr); } catch (e) {}
-              }, 500);
           }
       });
     }
@@ -415,11 +405,6 @@ const NotationCanvas: React.FC = () => {
       transposedStrings.forEach(noteStr => {
           if (Tone.context.state === 'running') {
               try { audioEngine.noteOn(noteStr, uiVelocityRef.current / 127); } catch (e) { console.error(e); }
-              
-              // Auto-release after 500ms
-              setTimeout(() => {
-                  try { audioEngine.releaseNote(noteStr); } catch (e) {}
-              }, 500);
           }
       });
     }
@@ -1030,6 +1015,7 @@ const NotationCanvas: React.FC = () => {
     };
 
     window.addEventListener('APP_TRANSFORM', handleTransform as any);
+    window.addEventListener('APP_TRANSFORM_OFF', handlePlayOff);
     window.addEventListener('APP_HISTORY', handleHistory as any);
     window.addEventListener('APP_PLAY_ON', handlePlayOn);
     window.addEventListener('APP_PLAY_OFF', handlePlayOff);
@@ -1040,6 +1026,7 @@ const NotationCanvas: React.FC = () => {
 
     return () => {
       window.removeEventListener('APP_TRANSFORM', handleTransform as any);
+      window.removeEventListener('APP_TRANSFORM_OFF', handlePlayOff);
       window.removeEventListener('APP_HISTORY', handleHistory as any);
       window.removeEventListener('APP_PLAY_ON', handlePlayOn);
       window.removeEventListener('APP_PLAY_OFF', handlePlayOff);
