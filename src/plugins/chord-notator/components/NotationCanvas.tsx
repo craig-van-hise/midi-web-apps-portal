@@ -788,7 +788,7 @@ const NotationCanvas: React.FC = () => {
   useEffect(() => {
     const handleMidiMessage = (event: Event) => {
       const customEvent = event as CustomEvent;
-      const { data, panic, refresh, notes, isVirtual, clearIdentity } = customEvent.detail || {};
+      const { data, panic, refresh, notes, isVirtual, clearIdentity, selectNotes } = customEvent.detail || {};
 
       if (panic) {
         activeNotes.current = [];
@@ -825,6 +825,16 @@ const NotationCanvas: React.FC = () => {
             };
           });
         }
+
+        if (selectNotes) {
+          selectedNoteIds.current.clear();
+          activeNotes.current.forEach(note => {
+            selectedNoteIds.current.add(note.id);
+          });
+          const selectedPitches = activeNotes.current.map(n => n.note);
+          setSelectedNotes?.(selectedPitches);
+        }
+
         updateSpellings();
         return;
       }

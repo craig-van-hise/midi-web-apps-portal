@@ -27,7 +27,7 @@ interface MidiContextType {
   setIsHoldModeActive: (b: boolean) => void;
   dispatchVirtualMidi: (data: Uint8Array) => void;
   dispatchPhysicalMidi: (data: Uint8Array) => void;
-  updateActiveNotes: (notes: any[], clearIdentity?: boolean) => void;
+  updateActiveNotes: (notes: any[], clearIdentity?: boolean, selectNotes?: boolean) => void;
   lut: (PCS_Entry | null)[];
   selectedNotes: number[];
   setSelectedNotes: (notes: number[]) => void;
@@ -496,12 +496,13 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setSelectedOutputId(portId);
   };
 
-  const updateActiveNotes = useCallback((notes: any[], clearIdentity?: boolean) => {
+  const updateActiveNotes = useCallback((notes: any[], clearIdentity?: boolean, selectNotes?: boolean) => {
     const refreshEvent = new CustomEvent('MIDI_MESSAGE_RECEIVED', {
       detail: { 
         refresh: true,
         notes,
-        clearIdentity
+        clearIdentity,
+        selectNotes
       }
     });
     window.dispatchEvent(refreshEvent);

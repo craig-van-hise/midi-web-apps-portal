@@ -286,7 +286,7 @@ export const Piano88: React.FC = () => {
             {/* Spelled Notes Strip - Tall version with zipper logic support */}
             <div 
                 id="spelled-notes-strip"
-                className="w-[936px] h-[30px] relative overflow-hidden text-[10px] font-bold tracking-tight text-blue-500 dark:text-blue-400 pointer-events-none"
+                className="w-[936px] h-[30px] relative overflow-visible z-50 text-[10px] font-bold tracking-tight text-blue-500 dark:text-blue-400 pointer-events-none"
                 style={{ 
                     fontFamily: "'Jost', sans-serif",
                     backgroundColor: 'rgba(59, 130, 246, 0.03)',
@@ -380,7 +380,7 @@ export const updateKeyVisuals88 = (note: number, color: string) => {
 /**
  * Updates the spelled notes strip via direct DOM access
  * Aligns labels horizontally and vertically with the keys.
- * Implements "zipper" collision detection to prevent overlapping text.
+ * Implements a Multi-Row Boundary Tracker to prevent text overlap.
  */
 export const updateSpelledNotesStrip = (spellings: { note: number; spelling: string }[], selectedNotes?: number[]) => {
     const el = document.getElementById('spelled-notes-strip');
@@ -388,9 +388,6 @@ export const updateSpelledNotesStrip = (spellings: { note: number; spelling: str
     
     // Clear existing
     el.innerHTML = '';
-
-    let lastX = -100;
-    let currentRow = 0;
 
     // Dynamically adjust container border/background to reflect active selection
     const hasSelection = spellings.some(data => selectedNotes?.includes(data.note));
@@ -402,28 +399,70 @@ export const updateSpelledNotesStrip = (spellings: { note: number; spelling: str
         el.style.borderColor = 'rgba(59, 130, 246, 0.1)';
     }
 
+    // 5-Row Zipper Tracking with tight 14px vertical clearances
+    const rowEdges = [-100, -100, -100, -100, -100];
+    const rowPositions = ['15px', '1px', '29px', '-13px', '43px'];
+    const PADDING = 2;
+
     spellings.forEach(data => {
         const x = getNoteX(data.note);
         
-        // Zipper logic: if notes are horizontally close, stagger them vertically
-        if (Math.abs(x - lastX) < 18) { 
-            currentRow = (currentRow + 1) % 2;
-        } else {
-            currentRow = 0; // Reset to bottom row if there's enough space
+        // Approximate width based on character count (avg 6px per character for 10px Jost font)
+        const approxWidth = data.spelling.length * 6 + PADDING;
+        const leftEdge = x - (approxWidth / 2);
+        const rightEdge = x + (approxWidth / 2);
+
+        let assignedRow = -1;
+
+        // 1. Try to find a row with no collision, prioritizing Bottom -> Top -> Middle
+        for (let i = 0; i < rowEdges.length; i++) {
+            if (leftEdge >= rowEdges[i]) {
+                assignedRow = i;
+                break;
+            }
         }
-        lastX = x;
+
+        // 2. If all rows collide (extreme clusters), pick the row with the least overlap
+        if (assignedRow === -1) {
+            let minOverflow = Infinity;
+            let bestRow = 0;
+            for (let i = 0; i < rowEdges.length; i++) {
+                const overflow = rowEdges[i] - leftEdge;
+                if (overflow < minOverflow) {
+                    minOverflow = overflow;
+                    bestRow = i;
+                }
+            }
+            assignedRow = bestRow;
+        }
+
+        // 3. Update the boundary edge tracker
+        rowEdges[assignedRow] = rightEdge;
 
         const label = document.createElement('div');
         label.textContent = data.spelling;
+        
+        // Structure styling
         label.style.position = 'absolute';
         label.style.left = `${x}px`;
-        // Row 0 is at bottom (75%), Row 1 is at top (25%)
-        label.style.top = currentRow === 0 ? '70%' : '30%';
+        label.style.top = rowPositions[assignedRow];
         label.style.transform = 'translate(-50%, -50%)';
         label.style.whiteSpace = 'nowrap';
+        label.style.padding = '0px 2px'; // Tighter visual padding
+        label.style.borderRadius = '2px';
         
+        // Tailwind classes for contextual backgrounds to maintain legibility
+        label.className = 'bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-[2px] transition-colors';
+        
+        // State styling
         const isSelected = selectedNotes?.includes(data.note);
         label.style.color = isSelected ? '#aa3bff' : '#3b82f6';
+        if (isSelected) {
+             label.style.fontWeight = '900';
+             label.style.zIndex = '10';
+        } else {
+             label.style.zIndex = '5';
+        }
         
         el.appendChild(label);
     });

@@ -4,8 +4,18 @@ import { SMuFL, assignXLevels } from '../utils/notationMath';
 import { getChordSymbol } from '../utils/chordSpeller';
 import { audioEngine } from '../audio/engine';
 import * as Tone from 'tone';
+import { Copy, Trash2 } from 'lucide-react';
 
 const MINI_STAFF = 5;
+
+const generateId = () => {
+  try {
+    return crypto.randomUUID();
+  } catch (e) {
+    return Date.now().toString(36) + Math.random().toString(36).substring(2);
+  }
+};
+
 
 // Mathematically identical port of the NotationCanvas layout engine, scaled for the mini-staff
 const computeMiniLayout = (rawNotes: any[], miniStaff: number) => {
@@ -149,9 +159,55 @@ export const StepSequencer: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedStep, setSelectedStep] = useState<number | null>(null);
-  const [sequence, setSequence] = useState<Array<{notes: any[], symbol: string}>>(
-    Array(8).fill({ notes: [], symbol: '' })
-  );
+  const [sequence, setSequence] = useState<Array<{notes: any[], symbol: string}>>(() => {
+    try {
+      const saved = localStorage.getItem('chord_notator_sequence');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length === 8) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load saved sequencer sequence:', e);
+    }
+    return Array(8).fill({ notes: [], symbol: '' });
+  });
+
+  useEffect(() => {
+    localStorage.setItem('chord_notator_sequence', JSON.stringify(sequence));
+  }, [sequence]);
+
+  const [draggingSource, setDraggingSource] = useState<number | null>(null);
+  const [dragOverStep, setDragOverStep] = useState<number | null>(null);
+  const [dragCoords, setDragCoords] = useState<{ x: number, y: number } | null>(null);
+  const [isOptionPressed, setIsOptionPressed] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') {
+        setIsOptionPressed(true);
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') {
+        setIsOptionPressed(false);
+      }
+    };
+    const handleBlur = () => {
+      setIsOptionPressed(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+
 
   const isRecordingRef = useRef(isRecording);
   const stepRef = useRef(currentStep);
@@ -185,7 +241,7 @@ export const StepSequencer: React.FC = () => {
         const targetBar = sequenceRef.current[nextStep];
         if (targetBar) {
           // Inject current notes array directly into core display provider context
-          updateActiveNotes(targetBar.notes, true);
+          updateActiveNotes(targetBar.notes, true, true);
           
           if (targetBar.notes.length > 0) {
             try { Tone.context.resume(); } catch(err){}
@@ -264,140 +320,263 @@ export const StepSequencer: React.FC = () => {
   }, [keySignature, lut]);
 
   return (
-    <div className="w-full max-w-[962px] bg-white dark:bg-[#111] p-3 rounded-lg shadow-xl border border-gray-200 dark:border-gray-800 flex items-center gap-4 select-none">
-      
-      {/* Record Button */}
-      <button 
-        onClick={() => {
-          setIsRecording(!isRecording);
-          if (!isRecording) setSelectedStep(null); // Clear manual selection when entering record mode
-        }}
-        className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0 ${isRecording ? 'border-red-500 bg-red-500/10' : 'border-gray-300 hover:border-gray-400 bg-transparent'}`}
-      >
-        <div className={`w-4 h-4 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`} />
-      </button>
+    <div className="w-full max-w-[962px] bg-white dark:bg-[#111] p-3 rounded-lg shadow-xl border border-gray-200 dark:border-gray-800 flex flex-col gap-2 select-none relative">
+      <div className="flex items-center gap-4 w-full">
+        {/* Control Buttons (Clear & Record) */}
+        <div className="flex flex-col items-center gap-2 flex-shrink-0">
+          {/* Clear All Button */}
+          <button
+            onClick={() => {
+              setSequence(Array(8).fill({ notes: [], symbol: '' }));
+              setSelectedStep(null);
+              selectedStepRef.current = null;
+              updateActiveNotes([], true);
+              try { audioEngine.releaseAll(); } catch(err){}
+              setIsRecording(false);
+              setCurrentStep(0);
+            }}
+            title="Clear all steps"
+            className="w-12 h-7 rounded border border-gray-200 dark:border-gray-800 hover:border-red-500 hover:text-red-500 text-gray-400 dark:text-gray-500 flex items-center justify-center transition-colors bg-white dark:bg-[#111] cursor-pointer hover:bg-red-500/5"
+          >
+            <Trash2 size={14} />
+          </button>
 
-      {/* Sequencer Grid */}
-      <div className="flex-1 flex border border-black/10 dark:border-white/10 rounded h-[140px] relative overflow-hidden bg-white dark:bg-[#0a0a0a]">
-        
-        {/* Clef & Brace Column */}
-        <div className="w-[45px] h-full flex flex-col relative flex-shrink-0 bg-white dark:bg-[#0a0a0a] border-r border-black/30 dark:border-gray-600/50">
+          {/* Record Button */}
+          <button 
+            onClick={() => {
+              setIsRecording(!isRecording);
+              if (!isRecording) setSelectedStep(null); // Clear manual selection when entering record mode
+            }}
+            className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0 ${isRecording ? 'border-red-500 bg-red-500/10' : 'border-gray-300 hover:border-gray-400 bg-transparent'}`}
+          >
+            <div className={`w-4 h-4 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`} />
+          </button>
+        </div>
+
+        {/* Sequencer Grid */}
+        <div className="flex-1 flex border border-black/10 dark:border-white/10 rounded h-[140px] relative overflow-hidden bg-white dark:bg-[#0a0a0a]">
+          
+          {/* Clef & Brace Column */}
+          <div className="w-[45px] h-full flex flex-col relative flex-shrink-0 bg-white dark:bg-[#0a0a0a] border-r border-black/30 dark:border-gray-600/50">
+              
+              {/* Top Spacer to align with chord pills */}
+              <div className="h-10 border-b border-black/10 dark:border-white/5 bg-gray-50/50 dark:bg-[#1a1a1a]/50" />
+
+              <div className="flex-1 relative w-full h-full">
+                  {/* System Left Edge (Barline & Brace) */}
+                  <div className="absolute left-[12px] w-[1.5px] bg-black dark:bg-gray-600" style={{ top: `calc(50% - ${MINI_STAFF * 6}px)`, height: `${MINI_STAFF * 12}px` }}>
+                      <div className="absolute right-[calc(100%+1px)] font-['Bravura'] text-black dark:text-gray-300 leading-none" style={{ top: `${MINI_STAFF * 6}px`, fontSize: `${MINI_STAFF * 12}px`, lineHeight: '1' }}>{'\uE000'}</div>
+                  </div>
+                  
+                  {/* Staff Lines */}
+                  <div className="absolute right-0 left-[12px]" style={{ top: `calc(50% - ${MINI_STAFF * 6}px)` }}>
+                    {[0, 1, 2, 3, 4].map(i => <div key={i} className="w-full border-t border-black dark:border-gray-600 absolute opacity-60" style={{ top: `${i * MINI_STAFF}px` }} />)}
+                  </div>
+                  <div className="absolute right-0 left-[12px]" style={{ top: `calc(50% + ${MINI_STAFF * 2}px)` }}>
+                    {[0, 1, 2, 3, 4].map(i => <div key={i} className="w-full border-t border-black dark:border-gray-600 absolute opacity-60" style={{ top: `${i * MINI_STAFF}px` }} />)}
+                  </div>
+                  
+                  {/* Clefs */}
+                  <div className="absolute left-[18px] text-black dark:text-gray-300 leading-none" style={{ top: `calc(50% - ${MINI_STAFF * 5}px)`, fontSize: `${MINI_STAFF * 4}px`, fontFamily: 'Bravura' }}>{'\uE050'}</div>
+                  <div className="absolute left-[18px] text-black dark:text-gray-300 leading-none" style={{ top: `calc(50% + ${MINI_STAFF * 1}px)`, fontSize: `${MINI_STAFF * 4}px`, fontFamily: 'Bravura' }}>{'\uE062'}</div>
+              </div>
+          </div>
+
+          {/* 8 Bars Sequence */}
+          {sequence.map((bar, idx) => {
+            const renderedNotes = computeMiniLayout(bar.notes, MINI_STAFF);
             
-            {/* Top Spacer to align with chord pills */}
-            <div className="h-10 border-b border-black/10 dark:border-white/5 bg-gray-50/50 dark:bg-[#1a1a1a]/50" />
+            return (
+            <div key={idx} className="flex-1 flex flex-col relative border-r border-black/30 dark:border-gray-600/50 last:border-0">
+              
+              {/* Chord Symbol Pill (Top) */}
+              <div 
+                data-step-index={idx}
+                onPointerDown={(e) => {
+                  const hasNotes = bar.notes && bar.notes.length > 0;
+                  if (e.altKey && hasNotes) {
+                    e.preventDefault();
+                    e.currentTarget.setPointerCapture(e.pointerId);
+                    setDraggingSource(idx);
+                    setDragCoords({ x: e.clientX, y: e.clientY });
+                    return;
+                  }
 
-            <div className="flex-1 relative w-full h-full">
-                {/* System Left Edge (Barline & Brace) */}
-                <div className="absolute left-[12px] w-[1.5px] bg-black dark:bg-gray-600" style={{ top: `calc(50% - ${MINI_STAFF * 6}px)`, height: `${MINI_STAFF * 12}px` }}>
-                    <div className="absolute right-[calc(100%+1px)] font-['Bravura'] text-black dark:text-gray-300 leading-none" style={{ top: `${MINI_STAFF * 6}px`, fontSize: `${MINI_STAFF * 12}px`, lineHeight: '1' }}>{'\uE000'}</div>
-                </div>
+                  // Normal selection click
+                  e.preventDefault();
+                  setSelectedStep(idx);
+                  selectedStepRef.current = idx;
+                  
+                  // Sync selection array upstream to main workspace
+                  updateActiveNotes(bar.notes, true, true);
+                  
+                  if (bar.notes.length > 0) {
+                    try { Tone.context.resume(); } catch(err){}
+                    try { audioEngine.releaseAll(); } catch(err){}
+                    bar.notes.forEach((n: any) => {
+                      const noteStr = Tone.Frequency(n.note, "midi").toNote();
+                      try { audioEngine.noteOn(noteStr, uiVelocity / 127); } catch(err){}
+                    });
+                  }
+                }}
+                onPointerMove={(e) => {
+                  if (draggingSource !== null) {
+                    setDragCoords({ x: e.clientX, y: e.clientY });
+                    const elem = document.elementFromPoint(e.clientX, e.clientY);
+                    const targetPill = elem?.closest('[data-step-index]');
+                    if (targetPill) {
+                      const targetIdx = parseInt(targetPill.getAttribute('data-step-index') || '', 10);
+                      if (!isNaN(targetIdx) && targetIdx !== draggingSource) {
+                        setDragOverStep(targetIdx);
+                      } else {
+                        setDragOverStep(null);
+                      }
+                    } else {
+                      setDragOverStep(null);
+                    }
+                  }
+                }}
+                onPointerUp={(e) => {
+                  if (draggingSource !== null) {
+                    e.currentTarget.releasePointerCapture(e.pointerId);
+                    if (dragOverStep !== null) {
+                      const sourceNotes = sequence[draggingSource].notes;
+                      const copiedNotes = sourceNotes.map(n => ({
+                        ...n,
+                        id: generateId()
+                      }));
+                      const symbol = sequence[draggingSource].symbol;
+
+                      setSequence(prev => {
+                        const next = [...prev];
+                        next[dragOverStep] = { notes: copiedNotes, symbol };
+                        if (selectedStep === dragOverStep) {
+                          updateActiveNotes(copiedNotes, true, true);
+                        }
+                        return next;
+                      });
+
+                      // Trigger short play preview on successful drop
+                      if (copiedNotes.length > 0) {
+                        try { Tone.context.resume(); } catch(err){}
+                        try { audioEngine.releaseAll(); } catch(err){}
+                        copiedNotes.forEach((n: any) => {
+                          const noteStr = Tone.Frequency(n.note, "midi").toNote();
+                          try { audioEngine.noteOn(noteStr, uiVelocity / 127); } catch(err){}
+                          setTimeout(() => {
+                            try { audioEngine.releaseNote(noteStr); } catch(err){}
+                          }, 400);
+                        });
+                      }
+                    }
+                    setDraggingSource(null);
+                    setDragOverStep(null);
+                    setDragCoords(null);
+                    return;
+                  }
+
+                  // Normal release
+                  if (bar.notes.length > 0) {
+                    bar.notes.forEach((n: any) => {
+                      const noteStr = Tone.Frequency(n.note, "midi").toNote();
+                      try { audioEngine.releaseNote(noteStr); } catch(err){}
+                    });
+                  }
+                }}
+                onPointerCancel={(e) => {
+                  if (draggingSource !== null) {
+                    e.currentTarget.releasePointerCapture(e.pointerId);
+                    setDraggingSource(null);
+                    setDragOverStep(null);
+                    setDragCoords(null);
+                  }
+                }}
+                onPointerLeave={() => {
+                  if (draggingSource !== null) return;
+                  if (bar.notes.length > 0) {
+                    bar.notes.forEach((n: any) => {
+                      const noteStr = Tone.Frequency(n.note, "midi").toNote();
+                      try { audioEngine.releaseNote(noteStr); } catch(err){}
+                    });
+                  }
+                }}
+                className="h-10 flex items-center justify-center relative bg-gray-50/50 dark:bg-[#1a1a1a]/50 border-b border-black/10 dark:border-white/5 z-20 select-none group"
+                style={{
+                  cursor: (isOptionPressed && bar.notes.length > 0) ? 'copy' : draggingSource !== null ? 'grabbing' : 'pointer'
+                }}
+              >
+                {(() => {
+                  const isDragging = draggingSource !== null;
+                  const isSource = draggingSource === idx;
+                  const isTargetHovered = dragOverStep === idx;
+
+                  let pillClasses = "shadow-sm rounded-full px-3 py-1 border min-w-[40px] flex justify-center items-center gap-1.5 transition-all ";
+
+                  if (isSource) {
+                    pillClasses += "bg-[#aa3bff]/20 border-dashed border-[#aa3bff] text-[#aa3bff] opacity-50 scale-95";
+                  } else if (isTargetHovered) {
+                    pillClasses += "bg-[#aa3bff]/20 border-double border-2 border-[#aa3bff] text-[#aa3bff] scale-105 shadow-md animate-pulse";
+                  } else if (isDragging) {
+                    pillClasses += "bg-white dark:bg-[#111] border-dashed border-gray-400 dark:border-gray-600 text-gray-400 hover:border-[#aa3bff] hover:text-[#aa3bff]";
+                  } else if (selectedStep === idx) {
+                    pillClasses += "bg-[#aa3bff]/10 border-[#aa3bff] text-[#aa3bff]";
+                  } else if (isOptionPressed && bar.notes.length > 0) {
+                    pillClasses += "bg-blue-500/10 border-blue-500 text-blue-500 hover:bg-blue-500/20";
+                  } else {
+                    pillClasses += "bg-white dark:bg-[#111] border-gray-200 dark:border-gray-800 group-hover:border-blue-400 text-blue-500";
+                  }
+
+                  return (
+                    <div className={pillClasses}>
+                      {isOptionPressed && bar.notes.length > 0 && !isSource && !isDragging && (
+                        <Copy size={10} className="text-blue-500" />
+                      )}
+                      <span className="text-[10px] font-black whitespace-nowrap" style={{ fontFamily: "'Jost', sans-serif" }}>
+                        {bar.symbol || '-'}
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Playhead Indicator */}
+              {isRecording && currentStep === idx && (
+                <div className="absolute inset-0 bg-red-500/10 border-l-2 border-r-2 border-red-500/50 z-10 pointer-events-none" />
+              )}
+
+              {/* Mini Grand Staff System */}
+              <div className="flex-1 relative w-full h-full">
                 
-                {/* Staff Lines */}
+                {/* Treble Lines */}
                 <div className="absolute w-full" style={{ top: `calc(50% - ${MINI_STAFF * 6}px)` }}>
                   {[0, 1, 2, 3, 4].map(i => <div key={i} className="w-full border-t border-black dark:border-gray-600 absolute opacity-60" style={{ top: `${i * MINI_STAFF}px` }} />)}
                 </div>
+                
+                {/* Bass Lines */}
                 <div className="absolute w-full" style={{ top: `calc(50% + ${MINI_STAFF * 2}px)` }}>
                   {[0, 1, 2, 3, 4].map(i => <div key={i} className="w-full border-t border-black dark:border-gray-600 absolute opacity-60" style={{ top: `${i * MINI_STAFF}px` }} />)}
                 </div>
-                
-                {/* Clefs */}
-                <div className="absolute left-[18px] text-black dark:text-gray-300 leading-none" style={{ top: `calc(50% - ${MINI_STAFF * 5}px)`, fontSize: `${MINI_STAFF * 4}px`, fontFamily: 'Bravura' }}>{'\uE050'}</div>
-                <div className="absolute left-[18px] text-black dark:text-gray-300 leading-none" style={{ top: `calc(50% + ${MINI_STAFF * 1}px)`, fontSize: `${MINI_STAFF * 4}px`, fontFamily: 'Bravura' }}>{'\uE062'}</div>
-            </div>
-        </div>
 
-        {/* 8 Bars Sequence */}
-        {sequence.map((bar, idx) => {
-          const renderedNotes = computeMiniLayout(bar.notes, MINI_STAFF);
-          
-          return (
-          <div key={idx} className="flex-1 flex flex-col relative border-r border-black/30 dark:border-gray-600/50 last:border-0">
-            
-            {/* Chord Symbol Pill (Top) */}
-            <div 
-              onPointerDown={(e) => {
-                e.preventDefault();
-                setSelectedStep(idx);
-                selectedStepRef.current = idx;
-                
-                // Sync selection array upstream to main workspace
-                updateActiveNotes(bar.notes, true);
-                
-                if (bar.notes.length > 0) {
-                  try { Tone.context.resume(); } catch(err){}
-                  try { audioEngine.releaseAll(); } catch(err){}
-                  bar.notes.forEach((n: any) => {
-                    const noteStr = Tone.Frequency(n.note, "midi").toNote();
-                    try { audioEngine.noteOn(noteStr, uiVelocity / 127); } catch(err){}
-                  });
-                }
-              }}
-              onPointerUp={() => {
-                if (bar.notes.length > 0) {
-                  bar.notes.forEach((n: any) => {
-                    const noteStr = Tone.Frequency(n.note, "midi").toNote();
-                    try { audioEngine.releaseNote(noteStr); } catch(err){}
-                  });
-                }
-              }}
-              onPointerLeave={() => {
-                if (bar.notes.length > 0) {
-                  bar.notes.forEach((n: any) => {
-                    const noteStr = Tone.Frequency(n.note, "midi").toNote();
-                    try { audioEngine.releaseNote(noteStr); } catch(err){}
-                  });
-                }
-              }}
-              className="h-10 flex items-center justify-center relative bg-gray-50/50 dark:bg-[#1a1a1a]/50 border-b border-black/10 dark:border-white/5 z-20 cursor-pointer group"
-            >
-              <div className={`shadow-sm rounded-full px-3 py-1 border min-w-[40px] flex justify-center transition-all ${selectedStep === idx ? 'bg-[#aa3bff]/10 border-[#aa3bff] text-[#aa3bff]' : 'bg-white dark:bg-[#111] border-gray-200 dark:border-gray-800 group-hover:border-blue-400'}`}>
-                <span className={`text-[10px] font-black whitespace-nowrap ${selectedStep === idx ? 'text-[#aa3bff]' : 'text-blue-500'}`} style={{ fontFamily: "'Jost', sans-serif" }}>
-                  {bar.symbol || '-'}
-                </span>
-              </div>
-            </div>
+                {/* Notes */}
+                {renderedNotes.map((n, i) => {
+                  const isSelected = selectedStep === idx;
+                  const textCol = isSelected ? 'text-[#aa3bff]' : 'text-black dark:text-gray-300';
+                  const bgCol = isSelected ? 'bg-[#aa3bff]' : 'bg-black dark:bg-gray-400';
 
-            {/* Playhead Indicator */}
-            {isRecording && currentStep === idx && (
-              <div className="absolute inset-0 bg-red-500/10 border-l-2 border-r-2 border-red-500/50 z-10 pointer-events-none" />
-            )}
-
-            {/* Mini Grand Staff System */}
-            <div className="flex-1 relative w-full h-full">
-              
-              {/* Treble Lines */}
-              <div className="absolute w-full" style={{ top: `calc(50% - ${MINI_STAFF * 6}px)` }}>
-                {[0, 1, 2, 3, 4].map(i => <div key={i} className="w-full border-t border-black dark:border-gray-600 absolute opacity-60" style={{ top: `${i * MINI_STAFF}px` }} />)}
-              </div>
-              
-              {/* Bass Lines */}
-              <div className="absolute w-full" style={{ top: `calc(50% + ${MINI_STAFF * 2}px)` }}>
-                {[0, 1, 2, 3, 4].map(i => <div key={i} className="w-full border-t border-black dark:border-gray-600 absolute opacity-60" style={{ top: `${i * MINI_STAFF}px` }} />)}
-              </div>
-
-              {/* Notes or Rest */}
-              {renderedNotes.length === 0 ? (
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-black dark:text-gray-300 opacity-60" style={{ fontFamily: 'Bravura', fontSize: `${MINI_STAFF * 4}px` }}>
-                  {'\uE4E3'} {/* Whole Rest */}
-                </div>
-              ) : (
-                renderedNotes.map((n, i) => {
-                  const itemColor = selectedStep === idx ? '#aa3bff' : undefined;
                   return (
                     <div key={i} className="absolute z-10" style={{ 
                       left: n.xOffset !== undefined ? `calc(50% + ${n.xOffset}px)` : '50%', 
                       top: `calc(50% - ${n.y}px)`, 
                       transform: 'translate(-50%, -50%)' 
                     }}>
-                      <span className="text-black dark:text-gray-300 transition-colors" style={{ fontFamily: 'Bravura', fontSize: `${MINI_STAFF * 4.2}px`, color: itemColor }}>{SMuFL.noteheadWhole}</span>
+                      <span className={`transition-colors ${textCol}`} style={{ fontFamily: 'Bravura', fontSize: `${MINI_STAFF * 4.2}px` }}>{SMuFL.noteheadWhole}</span>
                       {(n.accidental || n.forceAccidentalDisplay) && (
-                        <span className="absolute text-black dark:text-gray-300 transition-colors" style={{ 
+                        <span className={`absolute transition-colors ${textCol}`} style={{ 
                           left: n.accidentalLeft || `calc(-1.5 * ${MINI_STAFF}px)`, 
                           top: '50%', 
                           transform: 'translateY(-50%)', 
                           fontFamily: 'Bravura', 
-                          fontSize: `${MINI_STAFF * 3}px`,
-                          color: itemColor
+                          fontSize: `${MINI_STAFF * 3}px`
                         }}>
                           {n.accidental || SMuFL.accidentalNatural}
                         </span>
@@ -411,7 +590,7 @@ export const StepSequencer: React.FC = () => {
                           return (
                             <div 
                               key={`ledger-${n.note}-${lineStep}`}
-                              className="absolute left-1/2 -translate-x-1/2 h-[1px] bg-black dark:bg-gray-400 z-[-1]"
+                              className={`absolute left-1/2 -translate-x-1/2 h-[1px] z-[-1] transition-colors ${bgCol}`}
                               style={{
                                 width: `${MINI_STAFF * 2.5}px`,
                                 top: `calc(50% + ${yOffset}px)`
@@ -428,7 +607,7 @@ export const StepSequencer: React.FC = () => {
                           }
                         } else {
                           if (n.finalStep >= 0) {
-                            for (let ls = 0; ls <= n.finalStep; ls += 2) lines.push(renderLedgerLine(ls));
+                            for (let ls = 0; ls >= n.finalStep; ls += 2) lines.push(renderLedgerLine(ls));
                           } else if (n.finalStep <= -12) {
                             for (let ls = -12; ls >= n.finalStep; ls -= 2) lines.push(renderLedgerLine(ls));
                           }
@@ -437,13 +616,29 @@ export const StepSequencer: React.FC = () => {
                       })()}
                     </div>
                   );
-                })
-              )}
-            </div>
+                })}
+              </div>
 
-          </div>
-        )})}
+            </div>
+          )})}
+        </div>
       </div>
+
+
+      {/* Ghost Drag Pill */}
+      {draggingSource !== null && dragCoords && (
+        <div 
+          className="fixed pointer-events-none z-50 bg-[#aa3bff] text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg border border-[#aa3bff]/30 transform -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 opacity-90 transition-transform scale-105"
+          style={{
+            left: dragCoords.x,
+            top: dragCoords.y,
+            fontFamily: "'Jost', sans-serif"
+          }}
+        >
+          <Copy size={10} className="text-white animate-pulse" />
+          <span>{sequence[draggingSource].symbol || '-'}</span>
+        </div>
+      )}
     </div>
   );
 };
