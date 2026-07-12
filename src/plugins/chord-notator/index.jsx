@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MIDIProvider, useMidi } from './midi/MIDIProvider';
 import Keyboard, { updateKeyVisuals88 } from './components/Keyboard';
 import NotationCanvas from './components/NotationCanvas';
+import { StepSequencer } from './components/StepSequencer';
 import SettingsModal from './components/SettingsModal';
 import InfoModal from './components/InfoModal';
 import { TransformationsDrawer } from './components/toolbar/TransformationsDrawer';
@@ -101,6 +102,8 @@ const ChordNotatorContent = ({
         <div className="w-full max-w-[962px] flex justify-center leading-none" style={{ lineHeight: "1" }}>
           <NotationCanvas />
         </div>
+        
+        <StepSequencer />
         
         {/* The strict anchor wrapper */}
         <div className="relative isolate flex flex-col items-center w-full max-w-max mx-auto">

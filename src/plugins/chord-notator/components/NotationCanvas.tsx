@@ -417,6 +417,7 @@ const NotationCanvas: React.FC = () => {
       redoStack.current.push(activeNotes.current.map(n => ({ ...n })));
       activeNotes.current = undoStack.current.pop() || [];
       selectedNoteIds.current.clear();
+      chordIdentityRef.current.isActive = false; // ADDED FIX
       updateSpellings();
       updateActiveNotes?.([...activeNotes.current]);
       recalculateLayout();
@@ -428,6 +429,7 @@ const NotationCanvas: React.FC = () => {
       undoStack.current.push(activeNotes.current.map(n => ({ ...n })));
       activeNotes.current = redoStack.current.pop() || [];
       selectedNoteIds.current.clear();
+      chordIdentityRef.current.isActive = false; // ADDED FIX
       updateSpellings();
       updateActiveNotes?.([...activeNotes.current]);
       recalculateLayout();
@@ -436,6 +438,7 @@ const NotationCanvas: React.FC = () => {
 
   const applyHome = () => {
     const homePitches = homeChordRef.current && homeChordRef.current.length > 0 ? homeChordRef.current : [60];
+    chordIdentityRef.current.isActive = false; // ADDED FIX
     activeNotes.current = homePitches.map((pitch: number) => ({
       id: generateId(),
       note: pitch,
@@ -785,7 +788,7 @@ const NotationCanvas: React.FC = () => {
   useEffect(() => {
     const handleMidiMessage = (event: Event) => {
       const customEvent = event as CustomEvent;
-      const { data, panic, refresh, notes, isVirtual } = customEvent.detail || {};
+      const { data, panic, refresh, notes, isVirtual, clearIdentity } = customEvent.detail || {};
 
       if (panic) {
         activeNotes.current = [];
@@ -799,6 +802,11 @@ const NotationCanvas: React.FC = () => {
       }
 
       if (refresh) {
+        // DROP LOCK ON NAVIGATION
+        if (clearIdentity) {
+          chordIdentityRef.current.isActive = false;
+        }
+
         if (notes) {
           const itemPitches = notes.map((item: any) => typeof item === 'object' ? item.note : item);
           const safePitches = enforcePianoRange(itemPitches, []);
