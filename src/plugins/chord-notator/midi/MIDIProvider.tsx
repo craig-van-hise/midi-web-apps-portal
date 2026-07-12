@@ -447,7 +447,7 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       // Load LUT
       try {
-        const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
+        const baseUrl = (import.meta as any).env.BASE_URL.replace(/\/$/, '');
         const data = await fetchBinaryLUT(`${baseUrl}/PCS_LUT.dat`);
         setLut(data);
       } catch (e) {

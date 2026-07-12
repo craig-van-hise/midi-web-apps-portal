@@ -11,6 +11,8 @@ export const SMuFL = {
     accidentalNatural: '\uE261',
     accidentalDoubleSharp: '\uE263',
     accidentalDoubleFlat: '\uE264',
+    ottava: '\uE510',
+    quindicesima: '\uE514',
     // ... other glyphs as needed
 };
 

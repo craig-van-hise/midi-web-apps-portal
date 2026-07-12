@@ -36,6 +36,7 @@ const NotationCanvas: React.FC = () => {
   const [staffSpace, setStaffSpace] = useState<number>(12); // Default value
   const activeNotes = useRef<ActiveNoteData[]>([]);
   const [chordSymbol, setChordSymbol] = useState<string>("");
+  const [staffScale, setStaffScale] = useState<number>(1);
   const chordIdentityRef = useRef<ChordIdentity>({
     isActive: false,
     baseName: "",
@@ -464,6 +465,7 @@ const NotationCanvas: React.FC = () => {
       if (noteDatas.length === 0) {
         setRenderedNotes([]);
         setOttavaLabels([]);
+        setStaffScale(1); // Reset zoom on empty canvas
         return;
       }
 
@@ -471,19 +473,33 @@ const NotationCanvas: React.FC = () => {
       const bassNotesRaw = noteDatas.filter(n => !n.isTreble);
 
       let trebleShift = 0;
-      let trebleLabelText: string | null = null;
+      let trebleLabel: { glyph: string, suffix: string } | null = null;
+      
       if (trebleNotesRaw.length > 0) {
         const maxTrebleStep = Math.max(...trebleNotesRaw.map(n => n.stepOffset));
-        if (maxTrebleStep >= 28) { trebleShift = -14; trebleLabelText = "15ma"; }
-        else if (maxTrebleStep >= 21) { trebleShift = -7; trebleLabelText = "8va"; }
+        const minTrebleStep = Math.min(...trebleNotesRaw.map(n => n.stepOffset));
+
+        if (maxTrebleStep >= 25 && minTrebleStep - 14 >= -2) { 
+           trebleShift = -14; trebleLabel = { glyph: SMuFL.quindicesima, suffix: 'ma' }; 
+        }
+        else if (maxTrebleStep >= 18 && minTrebleStep - 7 >= -2) { 
+           trebleShift = -7; trebleLabel = { glyph: SMuFL.ottava, suffix: 'va' }; 
+        }
       }
 
       let bassShift = 0;
-      let bassLabelText: string | null = null;
+      let bassLabel: { glyph: string, suffix: string } | null = null;
+      
       if (bassNotesRaw.length > 0) {
         const minBassStep = Math.min(...bassNotesRaw.map(n => n.stepOffset));
-        if (minBassStep <= -30) { bassShift = 14; bassLabelText = "15mb"; }
-        else if (minBassStep <= -23) { bassShift = 7; bassLabelText = "8vb"; }
+        const maxBassStep = Math.max(...bassNotesRaw.map(n => n.stepOffset));
+
+        if (minBassStep <= -22 && maxBassStep + 14 <= 2) { 
+           bassShift = 14; bassLabel = { glyph: SMuFL.quindicesima, suffix: 'mb' }; 
+        }
+        else if (minBassStep <= -15 && maxBassStep + 7 <= 2) { 
+           bassShift = 7; bassLabel = { glyph: SMuFL.ottava, suffix: 'vb' }; 
+        }
       }
 
 
@@ -649,18 +665,38 @@ const NotationCanvas: React.FC = () => {
             allNotes.push(n);
           }
         });
-        if (isTreble && trebleLabelText && assigned.length > 0) {
+        if (isTreble && trebleLabel && assigned.length > 0) {
           const highest = assigned.reduce((prev, curr) => (curr.finalStep > prev.finalStep) ? curr : prev);
-          labels.push({ text: trebleLabelText, y: highest.y, type: 'treble', offset: -staffSpace * 2.8 });
+          labels.push({ data: trebleLabel, y: highest.y, type: 'treble', offset: -staffSpace * 2.8 });
         }
-        if (!isTreble && bassLabelText && assigned.length > 0) {
+        if (!isTreble && bassLabel && assigned.length > 0) {
           const lowest = assigned.reduce((prev, curr) => (curr.finalStep < prev.finalStep) ? curr : prev);
-          labels.push({ text: bassLabelText, y: lowest.y, type: 'bass', offset: staffSpace * 0.8 });
+          labels.push({ data: bassLabel, y: lowest.y, type: 'bass', offset: staffSpace * 0.8 });
         }
       };
 
       processGroup(trebleNotesRaw, trebleShift, true);
       processGroup(bassNotesRaw, bassShift, false);
+      // Auto-Zoom Calculation
+      let maxAbsY = 0;
+      allNotes.forEach(n => {
+          if (Math.abs(n.y) > maxAbsY) maxAbsY = Math.abs(n.y);
+      });
+      labels.forEach(l => {
+          const labelAbsY = Math.abs(l.y - l.offset);
+          if (labelAbsY > maxAbsY) maxAbsY = labelAbsY;
+      });
+
+      // 30px padding for noteheads/stems
+      const requiredHalfHeight = maxAbsY + 30; 
+      const TARGET_HALF_HEIGHT = 135; // Relaxed threshold for 320px canvas
+
+      if (requiredHalfHeight > TARGET_HALF_HEIGHT) {
+          setStaffScale(TARGET_HALF_HEIGHT / requiredHalfHeight);
+      } else {
+          setStaffScale(1);
+      }
+
       setRenderedNotes([...allNotes]);
       setOttavaLabels([...labels]);
     } catch (e) {
@@ -1493,7 +1529,13 @@ const NotationCanvas: React.FC = () => {
           </span>
         </div>
         
-        {/* Notes Layer */}
+        {/* Scaled Notation Layer */}
+        <div 
+          className="notation-zoom-layer relative w-full h-full flex flex-col justify-center items-center pointer-events-none"
+          style={{ transform: `scale(${staffScale})`, transition: 'transform 0.15s ease-out' }}
+        >
+
+          {/* Notes Layer */}
         <div id="notes-layer" data-testid="notes-layer" className="absolute inset-0 pointer-events-none z-10">
           <div id="ghost-note" className="absolute hidden pointer-events-none opacity-40 z-50 transition-none" style={{ left: '50%', transform: 'translate(-50%, -50%)' }}>
               <div id="ghost-accidental" className="absolute" style={{ left: 'calc(-1.5 * var(--staff-space))', top: '50%', transform: 'translateY(-50%)', fontFamily: "'Bravura', sans-serif", fontSize: `calc(var(--staff-space) * 3)`, color: 'var(--accent, #aa3bff)' }}></div>
@@ -1590,13 +1632,30 @@ const NotationCanvas: React.FC = () => {
           {ottavaLabels.map((label, idx) => (
             <div 
               key={`label-${idx}`}
-              className="ottava-label absolute font-serif italic text-black dark:text-gray-300 pointer-events-none whitespace-nowrap -translate-x-1/2 left-1/2"
+              className="ottava-label absolute pointer-events-none whitespace-nowrap -translate-x-1/2 left-1/2 flex items-baseline justify-center"
               style={{
-                fontSize: `calc(var(${STAFF_SPACE_CSS_VAR}) * 1.5)`,
-                top: `calc(50% - ${label.y}px + ${label.offset}px)`
+                top: `calc(50% - ${label.y}px + ${label.offset}px)`,
               }}
             >
-              {label.text}
+              <span 
+                className="text-black dark:text-gray-300"
+                style={{ 
+                  fontFamily: "'Bravura', sans-serif", 
+                  fontSize: `calc(var(${STAFF_SPACE_CSS_VAR}) * 3)`,
+                  lineHeight: 1
+                }}
+              >
+                {label.data.glyph}
+              </span>
+              <span 
+                className="font-serif italic text-black dark:text-gray-300 font-bold"
+                style={{ 
+                  fontSize: `calc(var(${STAFF_SPACE_CSS_VAR}) * 1.5)`,
+                  marginLeft: '2px'
+                }}
+              >
+                {label.data.suffix}
+              </span>
             </div>
           ))}
         </div>
@@ -1629,6 +1688,7 @@ const NotationCanvas: React.FC = () => {
         {/* Middle C reference line (invisible but for alignment) */}
         <div className="absolute w-full h-0 border-t border-transparent" style={{ top: '50%' }} />
 
+        </div>
       </div>
       <div ref={marqueeRef} className="selection-marquee absolute border border-blue-500 bg-blue-500/20 z-50 pointer-events-none hidden" style={{ left: 0, top: 0, width: 0, height: 0 }} />
     </div>

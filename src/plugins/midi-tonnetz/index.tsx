@@ -91,7 +91,7 @@ export default function MidiTonnetz({
 
   useEffect(() => {
     return () => {
-      throttledSyncUI.cancel();
+      (throttledSyncUI as any).cancel();
     };
   }, [throttledSyncUI]);
 
