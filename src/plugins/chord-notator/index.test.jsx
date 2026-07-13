@@ -41,6 +41,10 @@ describe('ChordNotator Hardware Event Bus Routing', () => {
       dispatchVirtualMidi: mockDispatchVirtualMidi,
       dispatchPhysicalMidi: mockDispatchPhysicalMidi,
       handleMidiPanic: vi.fn(),
+      sequence: Array(8).fill({ notes: [], symbol: '' }),
+      setSequence: vi.fn(),
+      sequenceKeyswitches: {},
+      mapSequenceToKeys: vi.fn(),
     });
 
     render(

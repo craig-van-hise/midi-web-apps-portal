@@ -4,7 +4,7 @@ import { SMuFL, assignXLevels } from '../utils/notationMath';
 import { getChordSymbol } from '../utils/chordSpeller';
 import { audioEngine } from '../audio/engine';
 import * as Tone from 'tone';
-import { Copy, Trash2 } from 'lucide-react';
+import { Copy, Trash2, Keyboard } from 'lucide-react';
 
 const MINI_STAFF = 5;
 
@@ -155,28 +155,10 @@ const computeMiniLayout = (rawNotes: any[], miniStaff: number) => {
 };
 
 export const StepSequencer: React.FC = () => {
-  const { keySignature, lut, updateActiveNotes, uiVelocity } = useMidi() as any;
+  const { keySignature, lut, updateActiveNotes, uiVelocity, sequence, setSequence, mapSequenceToKeys, isListeningForMap, setIsListeningForMap } = useMidi() as any;
   const [isRecording, setIsRecording] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedStep, setSelectedStep] = useState<number | null>(null);
-  const [sequence, setSequence] = useState<Array<{notes: any[], symbol: string}>>(() => {
-    try {
-      const saved = localStorage.getItem('chord_notator_sequence');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length === 8) {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load saved sequencer sequence:', e);
-    }
-    return Array(8).fill({ notes: [], symbol: '' });
-  });
-
-  useEffect(() => {
-    localStorage.setItem('chord_notator_sequence', JSON.stringify(sequence));
-  }, [sequence]);
 
   const [draggingSource, setDraggingSource] = useState<number | null>(null);
   const [dragOverStep, setDragOverStep] = useState<number | null>(null);
@@ -284,7 +266,7 @@ export const StepSequencer: React.FC = () => {
       }
 
       if (data && data instanceof Uint8Array && data.length >= 3) {
-        const [status, , vel] = data;
+        const [status, note, vel] = data;
         const isNoteOn = (status & 0xF0) === 0x90 && vel > 0;
         const isNoteOff = (status & 0xF0) === 0x80 || ((status & 0xF0) === 0x90 && vel === 0);
 
@@ -351,10 +333,44 @@ export const StepSequencer: React.FC = () => {
           >
             <div className={`w-4 h-4 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`} />
           </button>
+
+          {/* Map to Keys Button */}
+          <button
+            draggable={true}
+            onDragStart={(e) => {
+              if (e.altKey) {
+                e.dataTransfer.setData('application/json', JSON.stringify({ type: 'SEQUENCE_MAP_DRAG' }));
+              }
+            }}
+            onClick={() => {
+              setIsListeningForMap(!isListeningForMap);
+            }}
+            title="Map to Keys (Or Option+Drag to virtual keyboard)"
+            className={`w-12 h-7 rounded border flex items-center justify-center transition-all cursor-pointer ${
+              isListeningForMap
+                ? 'border-[#aa3bff] text-[#aa3bff] bg-[#aa3bff]/10 animate-pulse'
+                : 'border-gray-200 dark:border-gray-800 hover:border-[#aa3bff] hover:text-[#aa3bff] text-gray-400 dark:text-gray-500 bg-white dark:bg-[#111] hover:bg-[#aa3bff]/5'
+            }`}
+          >
+            <Keyboard size={14} />
+          </button>
         </div>
 
         {/* Sequencer Grid */}
         <div className="flex-1 flex border border-black/10 dark:border-white/10 rounded h-[140px] relative overflow-hidden bg-white dark:bg-[#0a0a0a]">
+          {isListeningForMap && (
+            <div className="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-[2px] z-30 flex flex-col items-center justify-center text-center p-4">
+              <span className="text-white text-xs font-semibold max-w-[80%] mb-2 leading-relaxed">
+                Press any key on your MIDI controller or virtual keyboard to assign the starting note for your sequence.
+              </span>
+              <button
+                onClick={() => setIsListeningForMap(false)}
+                className="px-3 py-1 rounded bg-white/20 hover:bg-white/30 text-white text-[10px] font-bold tracking-wider uppercase transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
           
           {/* Clef & Brace Column */}
           <div className="w-[45px] h-full flex flex-col relative flex-shrink-0 bg-white dark:bg-[#0a0a0a] border-r border-black/30 dark:border-gray-600/50">
@@ -546,6 +562,9 @@ export const StepSequencer: React.FC = () => {
 
               {/* Mini Grand Staff System */}
               <div className="flex-1 relative w-full h-full">
+                <span className="absolute top-1 left-2 text-[10px] font-bold text-black/30 dark:text-white/30 z-10 select-none">
+                  {idx + 1}
+                </span>
                 
                 {/* Treble Lines */}
                 <div className="absolute w-full" style={{ top: `calc(50% - ${MINI_STAFF * 6}px)` }}>

@@ -36,7 +36,7 @@ const BLACK_KEY_WIDTH = 11;
 const BLACK_KEY_HEIGHT = 56;
 
 export const Piano88: React.FC = () => {
-    const { dispatchVirtualMidi, lut, keySignature, selectedNotes, buttonConfigs, updateButtonConfig, clearMidiMapping } = useMidi() as any;
+    const { dispatchVirtualMidi, lut, keySignature, selectedNotes, buttonConfigs, updateButtonConfig, clearMidiMapping, sequenceKeyswitches, mapSequenceToKeys, sequence } = useMidi() as any;
 
     const displayedPitches = React.useRef<Set<number>>(new Set());
     const currentSpellings = React.useRef<{ note: number; spelling: string }[]>([]);
@@ -121,7 +121,7 @@ export const Piano88: React.FC = () => {
         updateSpelledNotesStrip(currentSpellings.current, selectedNotes);
     }, [selectedNotes]);
 
-    // Keep keyswitch badges updated when button configs (MIDI mappings) change
+    // Keep keyswitch badges updated when button configs (MIDI mappings) or sequence keyswitches change
     React.useEffect(() => {
         const noteToConfigMap = new Map<number, any>();
         if (buttonConfigs) {
@@ -134,9 +134,15 @@ export const Piano88: React.FC = () => {
         
         for (let note = 21; note <= 108; note++) {
             const configForNote = noteToConfigMap.get(note) || null;
-            updateKeyswitchBadge(note, configForNote);
+            const seqStepIndex = sequenceKeyswitches?.[note];
+            
+            if (seqStepIndex !== undefined) {
+                updateSequenceKeyswitchBadge(note, seqStepIndex);
+            } else {
+                updateKeyswitchBadge(note, configForNote);
+            }
         }
-    }, [buttonConfigs]);
+    }, [buttonConfigs, sequenceKeyswitches]);
 
     const handleKeyInteraction = (note: number, isDown: boolean, velocity: number = 100) => {
         if (isDown) {
@@ -160,6 +166,7 @@ export const Piano88: React.FC = () => {
                 <div
                     key={`w-${note}`}
                     id={`pk88-${note}`}
+                    data-note={note}
                     onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
                     onDragEnter={(e) => { e.currentTarget.style.outline = '3px solid #aa3bff'; e.currentTarget.style.outlineOffset = '-3px'; }}
                     onDragLeave={(e) => { e.currentTarget.style.outline = ''; }}
@@ -170,6 +177,8 @@ export const Piano88: React.FC = () => {
                             const data = JSON.parse(e.dataTransfer.getData('application/json'));
                             if (data.type === 'KEYSWITCH_DRAG' && data.buttonId) {
                                 updateButtonConfig(data.buttonId, { midiNote: note });
+                            } else if (data.type === 'SEQUENCE_MAP_DRAG') {
+                                mapSequenceToKeys(note, sequence);
                             }
                         } catch (err) {}
                     }}
@@ -211,6 +220,7 @@ export const Piano88: React.FC = () => {
                     {hasRightBlack && (
                         <div
                             id={`pk88-${note + 1}`}
+                            data-note={note + 1}
                             onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'copy'; }}
                             onDragEnter={(e) => { e.stopPropagation(); e.currentTarget.style.outline = '2px solid #aa3bff'; e.currentTarget.style.outlineOffset = '-2px'; }}
                             onDragLeave={(e) => { e.stopPropagation(); e.currentTarget.style.outline = ''; }}
@@ -222,6 +232,8 @@ export const Piano88: React.FC = () => {
                                     const data = JSON.parse(e.dataTransfer.getData('application/json'));
                                     if (data.type === 'KEYSWITCH_DRAG' && data.buttonId) {
                                         updateButtonConfig(data.buttonId, { midiNote: note + 1 });
+                                    } else if (data.type === 'SEQUENCE_MAP_DRAG') {
+                                        mapSequenceToKeys(note + 1, sequence);
                                     }
                                 } catch (err) {}
                             }}
@@ -559,7 +571,59 @@ export const updateKeyswitchBadge = (note: number, config: (ButtonConfig & { id:
     } else {
         badge.innerHTML = '';
     }
+ 
+    el.appendChild(badge);
+};
 
+/**
+ * Renders a sequence keyswitch badge overlay on a physical key
+ */
+export const updateSequenceKeyswitchBadge = (note: number, stepIndex: number) => {
+    const el = document.getElementById(`pk88-${note}`);
+    if (!el) return;
+
+    // Strict DOM Cleanup: IMMEDIATELY remove any existing badges
+    el.querySelectorAll('.ks-badge').forEach(b => b.remove());
+
+    const isBlack = [1, 3, 6, 8, 10].includes(note % 12);
+    const hex = '#aa3bff';
+    el.dataset.ksColor = hex;
+
+    // Apply color-mix background and top border
+    el.style.backgroundColor = isBlack 
+        ? `color-mix(in srgb, ${hex} 60%, #444444)` 
+        : `color-mix(in srgb, ${hex} 45%, #ffffff)`;
+    el.style.borderTop = `2px solid ${hex}`;
+
+    // Create badge div (strictly 14px x 14px)
+    const badge = document.createElement('div');
+    badge.className = 'ks-badge';
+    badge.style.position = 'absolute';
+    badge.style.left = '50%';
+    badge.style.transform = 'translateX(-50%)';
+    badge.style.width = '14px';
+    badge.style.height = '14px';
+    badge.style.borderRadius = '50%';
+    badge.style.backgroundColor = '#ffffff';
+    badge.style.border = `1.5px solid ${hex}`;
+    badge.style.color = hex;
+    badge.style.fontSize = '9px';
+    badge.style.fontWeight = 'bold';
+    badge.style.display = 'flex';
+    badge.style.alignItems = 'center';
+    badge.style.justifyContent = 'center';
+    badge.style.zIndex = '20';
+    badge.style.pointerEvents = 'none';
+
+    if (isBlack) {
+        badge.style.bottom = '4px';
+        badge.style.top = 'auto';
+    } else {
+        badge.style.bottom = '12px';
+        badge.style.top = 'auto';
+    }
+
+    badge.innerHTML = (stepIndex + 1).toString();
     el.appendChild(badge);
 };
 

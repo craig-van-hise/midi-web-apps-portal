@@ -1,4 +1,3 @@
-
 # VV | WebApps Portal
 
 Welcome to the **VV | WebApps Portal**—a unified, browser-based showcase for real-time MIDI processing modules. 
@@ -19,7 +18,7 @@ Built to demonstrate advanced MIDI data manipulation and web audio integration, 
 
 Currently, the portal hosts the following integrated plugins:
 
-1.  **VV | MIDI Chord Notator:** Generates and displays standard sheet music notation in real-time from live MIDI input.
+1.  **VV | MIDI Chord Notator & Sequencer:** Generates and displays standard sheet music notation in real-time from live MIDI input. Features an 8-bar chord recording timeline/step sequencer, a multi-row boundary tracker keyboard to prevent text overlap in dense chords, and option+click chord copying.
 2.  **VV | MIDI Pitch Class Matrix:** Maps and quantizes incoming MIDI notes to specific musical scales, pitch classes, and roots.
 3.  **VV | MIDI Monitor:** Provides real-time visual analysis and logging of incoming MIDI messages and Continuous Controller (CC) data.
 4.  **VV | MIDI Dynamics:** Applies custom processing curves, compression, and expansion to MIDI velocity data.
@@ -42,7 +41,7 @@ midi-web-apps-portal/
 │   │   ├── utils/          # Host utilities (latencyProfiler.js)
 │   │   └── App.jsx         # Main Host Layout & State Controller
 │   └── plugins/            # THE HEADLESS MODULES
-│       ├── chord-notator/  # Renders sheet music notation
+│       ├── chord-notator/  # Renders sheet music notation & sequencer
 │       ├── dynamics/       # Velocity compressor/expander
 │       ├── midi-tonnetz/   # Topological grid for visualizing harmonic relationships
 │       ├── midi-transposer/ # Two-zone keyboard transposer & output filter
@@ -59,24 +58,17 @@ This project uses [Vite](https://vitejs.dev/) and React.
 1. **Install Dependencies:**
 ```bash
 npm install
-
 ```
-
 
 2. **Start the Local Development Server:**
 ```bash
 npm run dev
-
 ```
-
 
 3. **Build for Production (GitHub Pages):**
 ```bash
 npm run build
-
 ```
-
-
 
 ---
 

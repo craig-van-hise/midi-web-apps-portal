@@ -49,6 +49,13 @@ interface MidiContextType {
   setUiVelocity: (val: number | ((prev: number) => number)) => void;
   homeChord: number[];
   setHomeChord: (val: number[] | ((prev: number[]) => number[])) => void;
+  sequenceKeyswitches: Record<number, number>;
+  setSequenceKeyswitches: React.Dispatch<React.SetStateAction<Record<number, number>>>;
+  mapSequenceToKeys: (rootNote: number, currentSequence: any[]) => void;
+  sequence: Array<{notes: any[], symbol: string}>;
+  setSequence: React.Dispatch<React.SetStateAction<Array<{notes: any[], symbol: string}>>>;
+  isListeningForMap: boolean;
+  setIsListeningForMap: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const MidiContext = createContext<MidiContextType | undefined>(undefined);
@@ -163,6 +170,24 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     sequence: [],
   });
 
+  const [sequenceKeyswitches, setSequenceKeyswitches] = useState<Record<number, number>>({});
+  const [sequence, setSequence] = useState<Array<{notes: any[], symbol: string}>>(() => {
+    try {
+      const saved = localStorage.getItem('chord_notator_sequence');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length === 8) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load saved sequencer sequence:', e);
+    }
+    return Array(8).fill({ notes: [], symbol: '' });
+  });
+
+  const [isListeningForMap, setIsListeningForMap] = useState<boolean>(false);
+
   const pendingNoteOffs = React.useRef<Set<number>>(new Set());
   const activeTransformationNotesRef = React.useRef<Map<number, number[]>>(new Map());
   const activeNotesRef = React.useRef<any[]>([]);
@@ -173,12 +198,23 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const configsRef = React.useRef<ButtonConfigMap>(configs);
   const learnStateRef = React.useRef<LearnState>(learnState);
 
+  const sequenceKeyswitchesRef = React.useRef<Record<number, number>>(sequenceKeyswitches);
+  const sequenceRef = React.useRef<Array<{notes: any[], symbol: string}>>(sequence);
+  const activeSequenceKeyswitchNotesRef = React.useRef<Map<number, number[]>>(new Map());
+  const isListeningForMapRef = React.useRef<boolean>(isListeningForMap);
+
   useEffect(() => { keySignatureRef.current = keySignature; }, [keySignature]);
   useEffect(() => { lutRef.current = lut; }, [lut]);
   useEffect(() => { listenModeRef.current = listenMode; }, [listenMode]);
   useEffect(() => { configsRef.current = configs; }, [configs]);
   useEffect(() => { learnStateRef.current = learnState; }, [learnState]);
   useEffect(() => { selectedNotesRef.current = selectedNotes; }, [selectedNotes]);
+  useEffect(() => { sequenceKeyswitchesRef.current = sequenceKeyswitches; }, [sequenceKeyswitches]);
+  useEffect(() => { isListeningForMapRef.current = isListeningForMap; }, [isListeningForMap]);
+  useEffect(() => {
+    sequenceRef.current = sequence;
+    localStorage.setItem('chord_notator_sequence', JSON.stringify(sequence));
+  }, [sequence]);
 
   const updateButtonConfig = useCallback((id: ButtonId, updates: Partial<ButtonConfig>) => {
     setConfigs(prev => ({
@@ -219,12 +255,58 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     console.log("[Learn Mode] Cancelled/Finished.");
   }, []);
 
+  const mapSequenceToKeys = useCallback((rootNote: number, currentSequence: any[]) => {
+    const newKeyswitches: Record<number, number> = {};
+    let currentNote = rootNote;
+    currentSequence.forEach((step, index) => {
+      if (step && step.notes && step.notes.length > 0) {
+        newKeyswitches[currentNote] = index;
+        currentNote++;
+      }
+    });
+    setSequenceKeyswitches(newKeyswitches);
+  }, []);
+
   useEffect(() => {
     (window as any).__MIDI_INTERCEPTOR = (data: Uint8Array) => {
       if (!data || data.length < 3) return false;
       const [status, note, velocity] = data;
       const isNoteOn = (status & 0xF0) === 0x90 && velocity > 0;
       const isNoteOff = (status & 0xF0) === 0x80 || ((status & 0xF0) === 0x90 && velocity === 0);
+
+      // 1.1. MAPPING LISTENING MODE INTERCEPTION
+      if (isListeningForMapRef.current) {
+        if (isNoteOn) {
+          mapSequenceToKeys(note, sequenceRef.current);
+          setIsListeningForMap(false);
+        }
+        return true; // Silence completely during keyswitch mapping
+      }
+
+      // 1.3. SEQUENCE KEYSWITCH INTERCEPTION
+      const seqKeys = sequenceKeyswitchesRef.current;
+      if (seqKeys && seqKeys[note] !== undefined) {
+        const stepIndex = seqKeys[note];
+        const step = sequenceRef.current[stepIndex];
+        if (isNoteOn) {
+          if (step && step.notes && step.notes.length > 0) {
+            const chordPitches = step.notes.map((n: any) => typeof n === 'object' ? n.note : n);
+            activeSequenceKeyswitchNotesRef.current.set(note, chordPitches);
+            if (listenModeRef.current) {
+              audioEngine.triggerAttack(chordPitches, velocity / 127);
+            }
+          }
+        } else if (isNoteOff) {
+          const activePitches = activeSequenceKeyswitchNotesRef.current.get(note);
+          if (activePitches) {
+            if (listenModeRef.current) {
+              audioEngine.triggerRelease(activePitches);
+            }
+            activeSequenceKeyswitchNotesRef.current.delete(note);
+          }
+        }
+        return true; // Silence the original single note
+      }
 
       // 1. LEARN MODE ACTIVE
       if (learnStateRef.current.isActive) {
@@ -320,9 +402,10 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const handleIncomingMidi = useCallback((data: Uint8Array, isVirtual: boolean = false) => {
-    // Global Interceptor: Only intercept PHYSICAL hardware events
-    if (!isVirtual && typeof (window as any).__MIDI_INTERCEPTOR === 'function') {
-      if ((window as any).__MIDI_INTERCEPTOR(data)) return; // Silently consume the note
+    // Global Interceptor: Only intercept PHYSICAL hardware events or virtual events during keyswitch mapping
+    if (typeof (window as any).__MIDI_INTERCEPTOR === 'function') {
+      const shouldIntercept = !isVirtual || isListeningForMapRef.current;
+      if (shouldIntercept && (window as any).__MIDI_INTERCEPTOR(data)) return; // Silently consume the note
     }
 
     const [status, note, velocity] = data;
@@ -404,8 +487,9 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
 
-    if (!isVirtual && data && data instanceof Uint8Array) {
-      if (typeof (window as any).__MIDI_INTERCEPTOR === 'function') {
+    if (data && data instanceof Uint8Array) {
+      const shouldIntercept = !isVirtual || isListeningForMapRef.current;
+      if (shouldIntercept && typeof (window as any).__MIDI_INTERCEPTOR === 'function') {
         (window as any).__MIDI_INTERCEPTOR(data);
       }
     }
@@ -550,6 +634,13 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUiVelocity,
         homeChord,
         setHomeChord,
+        sequenceKeyswitches,
+        setSequenceKeyswitches,
+        mapSequenceToKeys,
+        sequence,
+        setSequence,
+        isListeningForMap,
+        setIsListeningForMap,
       }}
     >
       {children}

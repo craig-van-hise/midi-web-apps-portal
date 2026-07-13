@@ -3,102 +3,128 @@
 
 /Users/vv2024/Documents/Repos - vv2024/MIDI/WebApps/midi-web-apps-portal
 ├── # Prompts
-|  ├── # 89.md
-|  ├── # 90.md
-|  ├── # 91.md
-|  ├── # 92.md
-|  ├── # 93.md
-|  ├── # 94.md
+|  ├── # 114.md
+|  ├── # 115.md
+|  ├── # 116.md
+|  ├── # 117.md
+|  ├── # 118.md
+|  ├── # 119.md
 |  ├── # Regenerate PC_LUT.md
 |  └── xOlder
-|     ├── # 0.md
-|     ├── # 1.md
-|     ├── # 10.md
-|     ├── # 11.md
-|     ├── # 12.md
-|     ├── # 13.md
-|     ├── # 14.md
-|     ├── # 15.md
-|     ├── # 16.md
-|     ├── # 17.md
-|     ├── # 18.md
-|     ├── # 19.md
-|     ├── # 2.md
-|     ├── # 20.md
-|     ├── # 22.md
-|     ├── # 23.md
-|     ├── # 24.md
-|     ├── # 25.md
-|     ├── # 26.md
-|     ├── # 27.md
-|     ├── # 28.md
-|     ├── # 29.md
-|     ├── # 3.md
-|     ├── # 30.md
-|     ├── # 31.md
-|     ├── # 32.md
-|     ├── # 33.md
-|     ├── # 34.md
-|     ├── # 35md
-|     ├── # 36.md
-|     ├── # 37.md
-|     ├── # 38.md
-|     ├── # 39.md
-|     ├── # 4.md
-|     ├── # 40.md
-|     ├── # 41.md
-|     ├── # 42.md
-|     ├── # 43.md
-|     ├── # 44.md
-|     ├── # 45.md
-|     ├── # 46.md
-|     ├── # 47.md
-|     ├── # 48.md
-|     ├── # 49.md
-|     ├── # 5.md
-|     ├── # 50.md
-|     ├── # 51.md
-|     ├── # 52.md
-|     ├── # 53.md
-|     ├── # 54.md
-|     ├── # 55.md
-|     ├── # 56.md
-|     ├── # 57.md
-|     ├── # 58.md
-|     ├── # 59.md
-|     ├── # 6.md
-|     ├── # 60.md
-|     ├── # 61.md
-|     ├── # 62.md
-|     ├── # 63.md
-|     ├── # 64.md
-|     ├── # 65.md
-|     ├── # 66.md
-|     ├── # 67.md
-|     ├── # 68.md
-|     ├── # 69.md
-|     ├── # 7.md
-|     ├── # 70.md
-|     ├── # 71.md
-|     ├── # 72.md
-|     ├── # 73.md
-|     ├── # 74.md
-|     ├── # 75.md
-|     ├── # 76.md
-|     ├── # 77.md
-|     ├── # 78.md
-|     ├── # 79.md
-|     ├── # 8.md
-|     ├── # 80.md
-|     ├── # 81.md
-|     ├── # 82.md
-|     ├── # 83.md
-|     ├── # 84.md
-|     ├── # 85.md
-|     ├── # 86.md
-|     ├── # 87.md
-|     ├── # 88.md
-|     └── # 9.md
+|     ├── # 101.md
+|     ├── # 102.md
+|     ├── # 103.md
+|     ├── # 104.md
+|     ├── # 105.md
+|     ├── # 106.md
+|     ├── # 107.md
+|     ├── # 108.md
+|     ├── # 109.md
+|     ├── # 110.md
+|     ├── # 111.md
+|     ├── # 112.md
+|     ├── # 113.md
+|     └── xEvenOlder
+|        ├── # 0.md
+|        ├── # 1.md
+|        ├── # 10.md
+|        ├── # 100.md
+|        ├── # 11.md
+|        ├── # 12.md
+|        ├── # 13.md
+|        ├── # 14.md
+|        ├── # 15.md
+|        ├── # 16.md
+|        ├── # 17.md
+|        ├── # 18.md
+|        ├── # 19.md
+|        ├── # 2.md
+|        ├── # 20.md
+|        ├── # 22.md
+|        ├── # 23.md
+|        ├── # 24.md
+|        ├── # 25.md
+|        ├── # 26.md
+|        ├── # 27.md
+|        ├── # 28.md
+|        ├── # 29.md
+|        ├── # 3.md
+|        ├── # 30.md
+|        ├── # 31.md
+|        ├── # 32.md
+|        ├── # 33.md
+|        ├── # 34.md
+|        ├── # 35md
+|        ├── # 36.md
+|        ├── # 37.md
+|        ├── # 38.md
+|        ├── # 39.md
+|        ├── # 4.md
+|        ├── # 40.md
+|        ├── # 41.md
+|        ├── # 42.md
+|        ├── # 43.md
+|        ├── # 44.md
+|        ├── # 45.md
+|        ├── # 46.md
+|        ├── # 47.md
+|        ├── # 48.md
+|        ├── # 49.md
+|        ├── # 5.md
+|        ├── # 50.md
+|        ├── # 51.md
+|        ├── # 52.md
+|        ├── # 53.md
+|        ├── # 54.md
+|        ├── # 55.md
+|        ├── # 56.md
+|        ├── # 57.md
+|        ├── # 58.md
+|        ├── # 59.md
+|        ├── # 6.md
+|        ├── # 60.md
+|        ├── # 61.md
+|        ├── # 62.md
+|        ├── # 63.md
+|        ├── # 64.md
+|        ├── # 65.md
+|        ├── # 66.md
+|        ├── # 67.md
+|        ├── # 68.md
+|        ├── # 69.md
+|        ├── # 7.md
+|        ├── # 70.md
+|        ├── # 71.md
+|        ├── # 72.md
+|        ├── # 73.md
+|        ├── # 74.md
+|        ├── # 75.md
+|        ├── # 76.md
+|        ├── # 77.md
+|        ├── # 78.md
+|        ├── # 79.md
+|        ├── # 8.md
+|        ├── # 80.md
+|        ├── # 81.md
+|        ├── # 82.md
+|        ├── # 83.md
+|        ├── # 84.md
+|        ├── # 85.md
+|        ├── # 86.md
+|        ├── # 87.md
+|        ├── # 88.md
+|        ├── # 89.md
+|        ├── # 9.md
+|        ├── # 90.md
+|        ├── # 91.md
+|        ├── # 92.md
+|        ├── # 93.md
+|        ├── # 94.md
+|        ├── # 95.md
+|        ├── # 96.md
+|        ├── # 97.md
+|        ├── # 98.md
+|        └── # 99.md
 ├── 2026-05-25_REPO_REPORT.md
 ├── DropFolder
 ├── FAILURE_REPORT_LATENCY.md
@@ -173,6 +199,8 @@
 |  |  |  |  ├── NotationCanvas.tsx
 |  |  |  |  ├── SettingsModal.test.tsx
 |  |  |  |  ├── SettingsModal.tsx
+|  |  |  |  ├── StepSequencer.test.tsx
+|  |  |  |  ├── StepSequencer.tsx
 |  |  |  |  └── toolbar
 |  |  |  ├── hooks
 |  |  |  ├── index.jsx
@@ -240,7 +268,7 @@
 ├── vite.config.js
 └── wrappingLogic.js
 
-directory: 988 file: 8225
+directory: 989 file: 8252
 
 ignored: directory (139)
 
@@ -254,7 +282,7 @@ ignored: directory (139)
 ## 1. Architecture & Directory Tree
 ```text
 midi-web-apps-portal/
-├── public/
+├── public/                     # Global assets, PCS_LUT.dat database, and fonts
 │   ├── fonts/
 │   │   └── Bravura.woff2
 │   ├── PCS_LUT.dat
@@ -275,7 +303,7 @@ midi-web-apps-portal/
 │   │   │   ├── MasterRompler.css
 │   │   │   ├── MasterRompler.jsx
 │   │   │   ├── VUMeter.jsx
-│   │   │   ├── engine.js          # Tone.js + smplr Audio Engine
+│   │   │   ├── engine.js       # Tone.js + smplr Audio Engine
 │   │   │   ├── engine.test.js
 │   │   │   ├── rompler.css
 │   │   │   ├── usePersistentState.js
@@ -289,12 +317,20 @@ midi-web-apps-portal/
 │   ├── plugins/
 │   │   ├── DummyPlugin.jsx
 │   │   ├── DummyPlugin.test.jsx
-│   │   ├── chord-notator/
-│   │   ├── dynamics/
-│   │   ├── midi-tonnetz/
-│   │   ├── midi-transposer/       # Two-zone keyboard transposer & output filter
-│   │   ├── monitor/
-│   │   └── pitch-class-matrix/
+│   │   ├── chord-notator/     # Chord Notator & Sequencer Suite
+│   │   │   ├── audio/
+│   │   │   ├── components/    # Keyboard, NotationCanvas, StepSequencer, toolbar/
+│   │   │   ├── hooks/
+│   │   │   ├── index.jsx
+│   │   │   ├── index.test.jsx
+│   │   │   ├── lib/
+│   │   │   ├── midi/
+│   │   │   └── utils/         # Chord spelling & notation math utilities
+│   │   ├── dynamics/          # Velocity compressor/expander
+│   │   ├── midi-tonnetz/      # Topological grid for visualizing harmonic relationships
+│   │   ├── midi-transposer/   # Two-zone keyboard transposer & output filter
+│   │   ├── monitor/           # MIDI log/event visualizer
+│   │   └── pitch-class-matrix/ # Scale and root quantizer
 │   ├── index.css
 │   ├── main.jsx
 │   └── setupTests.js
@@ -308,18 +344,18 @@ midi-web-apps-portal/
 
 ## 2. Tech Stack
 - **Core Framework**: React 19, Vite 8, ES6+ JavaScript
-- **Styling**: Tailwind CSS v4, Custom CSS variables, Framer Motion (via `motion`), Radix UI Primitives (e.g. Radix Tooltip)
+- **Styling**: Tailwind CSS v4, Custom CSS variables, Framer Motion (via `motion`), Radix UI Primitives (Slider, Tooltip)
 - **Audio Engine**: Highly-optimized native `Tone.js` and `smplr` instances with algorithmic routing (parallel Aux sends for reverb to bypass convolver latency).
 - **State Management**: React State & Context, Zustand
 - **Utility / Performance**: Lodash (`lodash/throttle`) for frame-rate limiting UI rendering.
 - **Icons**: Lucide React
-- **Testing**: Vitest, React Testing Library
+- **Testing**: Vitest, React Testing Library, JSDOM
 
 ## 3. Current System Capabilities
 - **Audio Engine**: Low-latency `Tone.js` + `smplr` architecture running on the main thread (`Tone.context.lookAhead = 0.002`). Executes MIDI triggers synchronously (bypassing React batching) and typecasts raw MIDI notes to Scientific Pitch Notation strings (`"C4"`) using `Tone.Frequency` before trigger. Reverb is configured as a parallel send/return bus using algorithmic `Tone.Freeverb` (Schroeder reverberator) to avoid FFT convolution delays.
 - **Tracking/MIDI Engine**: Global Web MIDI API manager routing hardware input directly down to active plugins using a ref-based `EventTarget` Event Bus, avoiding React batching issues and stuck notes. MIDI permissions status pill is integrated directly in the `TitleBar` to prevent visual layout overlaps.
 - **Visualizer & Processing Plugins**:
-  - **Chord Notator**: Renders sheet music notation from live MIDI inputs in real-time. Features a transformation engine with real-time UI/Audio integration, Radix-based accessible tooltips, and physical/virtual keyswitch binds for rapid trigger control.
+  - **Chord Notator**: Renders sheet music notation from live MIDI inputs in real-time. Features an 8-bar chord recording timeline/step sequencer, a multi-row boundary tracker keyboard to prevent text overlap in dense chords, and option+click chord copying. Includes a transformation engine with real-time UI/Audio integration, Radix-based accessible tooltips, and physical/virtual keyswitches (drag-and-drop editable) for rapid trigger control.
   - **MIDI Tonnetz**: Euler-Riemann topological grid for visualizing harmonic relationships.
   - **Pitch Class Matrix**: Maps and quantizes incoming MIDI notes to specific roots and scales.
   - **MIDI Monitor**: Logs live MIDI status messages, note numbers, velocities, and CC changes.
@@ -328,11 +364,10 @@ midi-web-apps-portal/
 - **UI State Logic**: Frame-rate limited state sync (~30fps / 32ms) separating instant synchronous audio triggers from asynchronous rendering cycles. Z-index layering is strictly audited to resolve popovers, settings overlays, and interactive canvas components.
 
 ## 4. Recent Evolution
-We completed integration of Radix Tooltip primitives into the Chord Notator transformations toolbar, resolved settings overlay z-index stacking issues, and implemented physical keyboard keyswitches to toggle chord transformations on-the-fly. We also refined the WebMIDI permission flows, moving the status indicator pill into the host TitleBar. Prior to this, we solidified the Tone.js + smplr low-latency architecture, completely bypassing AudioWorklet overhead.
+Recently, we completed a major overhaul of the Chord Notator component, adding an 8-bar chord recording timeline/step sequencer, a multi-row boundary tracker keyboard to prevent text overlap in dense chords, auto-zoom on the notation canvas, and option+click chord copying. We also added drag-and-drop customizable keyswitch binds for chord transformations, fixed z-index layering bugs in settings popups, and resolved key transpose enharmonics bugs.
 
 
 ### FILE: README.md
-
 
 # VV | WebApps Portal
 
@@ -354,7 +389,7 @@ Built to demonstrate advanced MIDI data manipulation and web audio integration, 
 
 Currently, the portal hosts the following integrated plugins:
 
-1.  **VV | MIDI Chord Notator:** Generates and displays standard sheet music notation in real-time from live MIDI input.
+1.  **VV | MIDI Chord Notator & Sequencer:** Generates and displays standard sheet music notation in real-time from live MIDI input. Features an 8-bar chord recording timeline/step sequencer, a multi-row boundary tracker keyboard to prevent text overlap in dense chords, and option+click chord copying.
 2.  **VV | MIDI Pitch Class Matrix:** Maps and quantizes incoming MIDI notes to specific musical scales, pitch classes, and roots.
 3.  **VV | MIDI Monitor:** Provides real-time visual analysis and logging of incoming MIDI messages and Continuous Controller (CC) data.
 4.  **VV | MIDI Dynamics:** Applies custom processing curves, compression, and expansion to MIDI velocity data.
@@ -377,7 +412,7 @@ midi-web-apps-portal/
 │   │   ├── utils/          # Host utilities (latencyProfiler.js)
 │   │   └── App.jsx         # Main Host Layout & State Controller
 │   └── plugins/            # THE HEADLESS MODULES
-│       ├── chord-notator/  # Renders sheet music notation
+│       ├── chord-notator/  # Renders sheet music notation & sequencer
 │       ├── dynamics/       # Velocity compressor/expander
 │       ├── midi-tonnetz/   # Topological grid for visualizing harmonic relationships
 │       ├── midi-transposer/ # Two-zone keyboard transposer & output filter
@@ -394,24 +429,17 @@ This project uses [Vite](https://vitejs.dev/) and React.
 1. **Install Dependencies:**
 ```bash
 npm install
-
 ```
-
 
 2. **Start the Local Development Server:**
 ```bash
 npm run dev
-
 ```
-
 
 3. **Build for Production (GitHub Pages):**
 ```bash
 npm run build
-
 ```
-
-
 
 ---
 
