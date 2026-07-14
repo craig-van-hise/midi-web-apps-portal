@@ -562,15 +562,26 @@ const NotationCanvas: React.FC = () => {
             const sortedRightAcc = [...rightAccNotesForReach].sort((a, b) => b.finalStep - a.finalStep);
             const rightColumns: number[][] = [];
             sortedRightAcc.forEach(note => {
-              let col = 0;
-              let placed = false;
-              while (!placed) {
-                if (!rightColumns[col]) rightColumns[col] = [];
-                if (!rightColumns[col].some(existingStep => Math.abs(existingStep - note.finalStep) <= 3)) {
-                  rightColumns[col].push(note.finalStep);
-                  placed = true;
-                } else { col++; }
-              }
+               let col = 0;
+               let placed = false;
+               let iter = 0;
+               while (!placed && iter < 50) {
+                 iter++;
+                 if (!rightColumns[col]) rightColumns[col] = [];
+                 
+                 // Bug Trap & Sanitization
+                 let safeStep = note.finalStep;
+                 if (!Number.isFinite(safeStep)) {
+                   console.warn("BUG TRAP: Invalid finalStep detected in rightColumns layout", note);
+                   safeStep = 0; // Fallback to prevent math failure
+                 }
+                 
+                 if (!rightColumns[col].some(existingStep => Math.abs(existingStep - safeStep) <= 3)) {
+                   rightColumns[col].push(safeStep);
+                   placed = true;
+                 } else { col++; }
+               }
+               if (iter >= 50) console.error("CIRCUIT BREAKER TRIPPED: rightColumns layout loop exceeded 50 iterations.");
             });
             const maxCol = rightColumns.length - 1;
             // 1.5 base reach + 1.2 for every additional column
@@ -629,11 +640,21 @@ const NotationCanvas: React.FC = () => {
           sorted.forEach(note => {
             let col = 0;
             let placed = false;
-            while (!placed) {
+            let iter = 0;
+            while (!placed && iter < 50) {
+              iter++;
               if (!columns[col]) columns[col] = [];
-              const collision = columns[col].some(existingStep => Math.abs(existingStep - note.finalStep) <= 3);
+              
+              // Bug Trap & Sanitization
+              let safeStep = note.finalStep;
+              if (!Number.isFinite(safeStep)) {
+                console.warn("BUG TRAP: Invalid finalStep detected in columns layout", note);
+                safeStep = 0; // Fallback to prevent math failure
+              }
+              
+              const collision = columns[col].some(existingStep => Math.abs(existingStep - safeStep) <= 3);
               if (!collision) {
-                columns[col].push(note.finalStep);
+                columns[col].push(safeStep);
                 const offsetMultiplier = ACC_BASE_OFFSET - (col * ACC_COLUMN_WIDTH);
                 
                 // Compaction: Bring accidentals slightly closer to noteheads
@@ -651,6 +672,7 @@ const NotationCanvas: React.FC = () => {
                 col++;
               }
             }
+            if (iter >= 50) console.error("CIRCUIT BREAKER TRIPPED: columns layout loop exceeded 50 iterations.");
           });
         };
 

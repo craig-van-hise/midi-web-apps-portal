@@ -71,13 +71,24 @@ const computeMiniLayout = (rawNotes: any[], miniStaff: number) => {
         sortedRightAcc.forEach(note => {
           let col = 0;
           let placed = false;
-          while (!placed) {
+          let iter = 0;
+          while (!placed && iter < 50) {
+            iter++;
             if (!rightColumns[col]) rightColumns[col] = [];
-            if (!rightColumns[col].some(existingStep => Math.abs(existingStep - note.finalStep) <= 3)) {
-              rightColumns[col].push(note.finalStep);
+            
+            // Bug Trap & Sanitization
+            let safeStep = note.finalStep;
+            if (!Number.isFinite(safeStep)) {
+              console.warn("BUG TRAP: Invalid finalStep detected in rightColumns layout", note);
+              safeStep = 0; // Fallback to prevent math failure
+            }
+            
+            if (!rightColumns[col].some(existingStep => Math.abs(existingStep - safeStep) <= 3)) {
+              rightColumns[col].push(safeStep);
               placed = true;
             } else { col++; }
           }
+          if (iter >= 50) console.error("CIRCUIT BREAKER TRIPPED: rightColumns layout loop exceeded 50 iterations.");
         });
         maxRightAccReachPx = (1.5 + ((rightColumns.length - 1) * 1.2)) * miniStaff;
       }
@@ -125,10 +136,20 @@ const computeMiniLayout = (rawNotes: any[], miniStaff: number) => {
       sorted.forEach(note => {
         let col = 0;
         let placed = false;
-        while (!placed) {
+        let iter = 0;
+        while (!placed && iter < 50) {
+          iter++;
           if (!columns[col]) columns[col] = [];
-          if (!columns[col].some(existingStep => Math.abs(existingStep - note.finalStep) <= 3)) {
-            columns[col].push(note.finalStep);
+          
+          // Bug Trap & Sanitization
+          let safeStep = note.finalStep;
+          if (!Number.isFinite(safeStep)) {
+            console.warn("BUG TRAP: Invalid finalStep detected in columns layout", note);
+            safeStep = 0; // Fallback to prevent math failure
+          }
+          
+          if (!columns[col].some(existingStep => Math.abs(existingStep - safeStep) <= 3)) {
+            columns[col].push(safeStep);
             const offsetMultiplier = -1.5 - (col * 1.2);
             const compactionOffset = (baseX > 0) ? (0.15 * miniStaff) : 0;
             const currentCompaction = compactionOffset;
@@ -140,6 +161,7 @@ const computeMiniLayout = (rawNotes: any[], miniStaff: number) => {
             placed = true;
           } else { col++; }
         }
+        if (iter >= 50) console.error("CIRCUIT BREAKER TRIPPED: columns layout loop exceeded 50 iterations.");
       });
     };
 
@@ -155,10 +177,29 @@ const computeMiniLayout = (rawNotes: any[], miniStaff: number) => {
 };
 
 export const StepSequencer: React.FC = () => {
-  const { keySignature, lut, updateActiveNotes, uiVelocity, sequence, setSequence, mapSequenceToKeys, isListeningForMap, setIsListeningForMap } = useMidi() as any;
+  const { keySignature, lut, updateActiveNotes, uiVelocity, sequence, setSequence, mapSequenceToKeys, isListeningForMap, setIsListeningForMap, sequenceKeyswitches, setSequenceKeyswitches } = useMidi() as any;
   const [isRecording, setIsRecording] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedStep, setSelectedStep] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!sequenceKeyswitches || Object.keys(sequenceKeyswitches).length === 0) return;
+
+    let hasChanges = false;
+    const updatedSwitches = { ...sequenceKeyswitches };
+
+    Object.entries(updatedSwitches).forEach(([midiNote, stepIndex]) => {
+      const idx = typeof stepIndex === 'number' ? stepIndex : parseInt(stepIndex as string, 10);
+      if (!sequence[idx] || !sequence[idx].notes || sequence[idx].notes.length === 0) {
+        delete updatedSwitches[parseInt(midiNote, 10)];
+        hasChanges = true;
+      }
+    });
+
+    if (hasChanges) {
+      setSequenceKeyswitches(updatedSwitches);
+    }
+  }, [sequence, sequenceKeyswitches, setSequenceKeyswitches]);
 
   const [draggingSource, setDraggingSource] = useState<number | null>(null);
   const [dragOverStep, setDragOverStep] = useState<number | null>(null);
@@ -250,14 +291,20 @@ export const StepSequencer: React.FC = () => {
 
       if (refresh && notes) {
         lastSeenChord.current = notes;
+        const currentNotes = notes;
+        const pitches = currentNotes.map((n: any) => typeof n === 'object' ? n.note : n);
+        const symbol = pitches.length > 0 ? getChordSymbol(pitches, keySignature, lut) : '';
 
-        // BI-DIRECTIONAL SYNC: Overwrite selected timeline slot in real-time
-        if (selectedStepRef.current !== null) {
-          const currentNotes = notes;
-          const pitches = currentNotes.map((n: any) => typeof n === 'object' ? n.note : n);
-          const symbol = pitches.length > 0 ? getChordSymbol(pitches, keySignature, lut) : '';
-
-          setSequence(prev => {
+        if (isRecordingRef.current && currentNotes.length > 0) {
+          // Real-time preview: Draw immediately on NoteOn
+          setSequence((prev: any[]) => {
+            const next = [...prev];
+            next[stepRef.current] = { notes: [...currentNotes], symbol };
+            return next;
+          });
+        } else if (selectedStepRef.current !== null && !isRecordingRef.current) {
+          // Existing bi-directional sync for selected step
+          setSequence((prev: any[]) => {
             const next = [...prev];
             next[selectedStepRef.current!] = { notes: [...currentNotes], symbol };
             return next;
@@ -274,17 +321,9 @@ export const StepSequencer: React.FC = () => {
         if (isNoteOff) activeKeys.current = Math.max(0, activeKeys.current - 1);
 
         if (isNoteOff && activeKeys.current === 0 && isRecordingRef.current) {
-          const currentNotes = lastSeenChord.current;
-          if (currentNotes.length > 0) {
-            const pitches = currentNotes.map(n => typeof n === 'object' ? n.note : n);
-            const symbol = getChordSymbol(pitches, keySignature, lut);
-            
-            setSequence(prev => {
-              const next = [...prev];
-              next[stepRef.current] = { notes: [...currentNotes], symbol };
-              return next;
-            });
-
+          // Check if the real-time sync actually recorded anything before advancing
+          const stepHasNotes = sequenceRef.current[stepRef.current]?.notes?.length > 0;
+          if (stepHasNotes) {
             setCurrentStep(s => {
               if (s >= 7) {
                 setIsRecording(false);
@@ -310,6 +349,7 @@ export const StepSequencer: React.FC = () => {
           <button
             onClick={() => {
               setSequence(Array(8).fill({ notes: [], symbol: '' }));
+              setSequenceKeyswitches({});
               setSelectedStep(null);
               selectedStepRef.current = null;
               updateActiveNotes([], true);
@@ -326,8 +366,15 @@ export const StepSequencer: React.FC = () => {
           {/* Record Button */}
           <button 
             onClick={() => {
-              setIsRecording(!isRecording);
-              if (!isRecording) setSelectedStep(null); // Clear manual selection when entering record mode
+              const nextIsRecording = !isRecording;
+              setIsRecording(nextIsRecording);
+              if (nextIsRecording) {
+                // Start from selected step, or 0 if none selected
+                setCurrentStep(selectedStep !== null ? selectedStep : 0);
+                setSelectedStep(null); // Clear selection visually to avoid UX confusion
+              } else {
+                setSelectedStep(null);
+              }
             }}
             className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0 ${isRecording ? 'border-red-500 bg-red-500/10' : 'border-gray-300 hover:border-gray-400 bg-transparent'}`}
           >
@@ -399,7 +446,7 @@ export const StepSequencer: React.FC = () => {
           </div>
 
           {/* 8 Bars Sequence */}
-          {sequence.map((bar, idx) => {
+          {(sequence as any[]).map((bar: any, idx: number) => {
             const renderedNotes = computeMiniLayout(bar.notes, MINI_STAFF);
             
             return (
@@ -457,13 +504,15 @@ export const StepSequencer: React.FC = () => {
                     e.currentTarget.releasePointerCapture(e.pointerId);
                     if (dragOverStep !== null) {
                       const sourceNotes = sequence[draggingSource].notes;
-                      const copiedNotes = sourceNotes.map(n => ({
-                        ...n,
-                        id: generateId()
-                      }));
+                      const copiedNotes = sourceNotes.map((n: any) => {
+                        if (typeof n === 'object' && n !== null) {
+                          return { ...n, id: generateId() };
+                        }
+                        return n; // If it's a raw number, leave it alone.
+                      });
                       const symbol = sequence[draggingSource].symbol;
 
-                      setSequence(prev => {
+                      setSequence((prev: any[]) => {
                         const next = [...prev];
                         next[dragOverStep] = { notes: copiedNotes, symbol };
                         if (selectedStep === dragOverStep) {

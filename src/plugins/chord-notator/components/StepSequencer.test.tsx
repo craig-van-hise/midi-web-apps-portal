@@ -41,6 +41,8 @@ describe('StepSequencer Component UI & Copy Instructions', () => {
       mapSequenceToKeys: mockMapSequenceToKeys,
       isListeningForMap: isListening,
       setIsListeningForMap: setIsListening,
+      sequenceKeyswitches: {},
+      setSequenceKeyswitches: vi.fn(),
     });
 
     return <StepSequencer />;
@@ -98,4 +100,184 @@ describe('StepSequencer Component UI & Copy Instructions', () => {
       expect(barNumElement.className).toContain('left-2');
     }
   });
+
+  test('Given sequenceKeyswitches has an entry { 36: 0 }, When sequence[0] is updated to have an empty notes array, Assert the useEffect fires and updates sequenceKeyswitches to {}', () => {
+    let currentKeyswitches = { 36: 0 };
+    const setKeyswitchesSpy = vi.fn((val) => {
+      currentKeyswitches = typeof val === 'function' ? val(currentKeyswitches) : val;
+    });
+
+    const TestPruningWrapper: React.FC = () => {
+      const [sequence, setSequence] = React.useState([
+        { notes: [{ note: 60 }], symbol: 'C' },
+        { notes: [], symbol: '' },
+        { notes: [], symbol: '' },
+        { notes: [], symbol: '' },
+        { notes: [], symbol: '' },
+        { notes: [], symbol: '' },
+        { notes: [], symbol: '' },
+        { notes: [], symbol: '' }
+      ]);
+
+      (useMidi as any).mockReturnValue({
+        keySignature: 'C Major',
+        lut: [],
+        updateActiveNotes: vi.fn(),
+        uiVelocity: 80,
+        sequence,
+        setSequence,
+        mapSequenceToKeys: vi.fn(),
+        isListeningForMap: false,
+        setIsListeningForMap: vi.fn(),
+        sequenceKeyswitches: currentKeyswitches,
+        setSequenceKeyswitches: setKeyswitchesSpy,
+      });
+
+      return (
+        <div>
+          <StepSequencer />
+          <button data-testid="clear-step-0" onClick={() => {
+            setSequence(prev => {
+              const next = [...prev];
+              next[0] = { notes: [], symbol: '' };
+              return next;
+            });
+          }}>Clear Step 0</button>
+        </div>
+      );
+    };
+
+    render(<TestPruningWrapper />);
+
+    expect(setKeyswitchesSpy).not.toHaveBeenCalled();
+
+    const clearBtn = screen.getByTestId('clear-step-0');
+    act(() => {
+      clearBtn.click();
+    });
+
+    expect(setKeyswitchesSpy).toHaveBeenCalledWith({});
+  });
+
+  test('Given the step sequencer has populated steps and active keyswitches, When the Trash Can is clicked, Assert setSequenceKeyswitches({}) is called', () => {
+    const mockSetSequenceKeyswitches = vi.fn();
+    
+    const TestTrashWrapper: React.FC = () => {
+      const [sequence, setSequence] = React.useState(Array(8).fill({ notes: [], symbol: '' }));
+      (useMidi as any).mockReturnValue({
+        keySignature: 'C Major',
+        lut: [],
+        updateActiveNotes: vi.fn(),
+        uiVelocity: 80,
+        sequence,
+        setSequence,
+        mapSequenceToKeys: vi.fn(),
+        isListeningForMap: false,
+        setIsListeningForMap: vi.fn(),
+        sequenceKeyswitches: { 36: 0 },
+        setSequenceKeyswitches: mockSetSequenceKeyswitches,
+      });
+
+      return <StepSequencer />;
+    };
+
+    render(<TestTrashWrapper />);
+
+    // Click "Clear all steps" (Trash Can) button
+    const clearAllButton = screen.getByTitle('Clear all steps');
+    expect(clearAllButton).toBeInTheDocument();
+
+    act(() => {
+      clearAllButton.click();
+    });
+
+    expect(mockSetSequenceKeyswitches).toHaveBeenCalledWith({});
+  });
+
+  test('Phase 1: Given sourceNotes is [60, 64], When the copy handler maps the array, Assert copiedNotes remains [60, 64] and not [{id: "..."}]', () => {
+    const mockSetSequence = vi.fn();
+    const mockSequence = Array(8).fill(null).map(() => ({ notes: [] as any[], symbol: "" }));
+    mockSequence[0] = { notes: [60, 64], symbol: 'C' };
+
+    (useMidi as any).mockReturnValue({
+      keySignature: 'C Major',
+      lut: [],
+      updateActiveNotes: vi.fn(),
+      uiVelocity: 80,
+      sequence: mockSequence,
+      setSequence: mockSetSequence,
+      mapSequenceToKeys: vi.fn(),
+      isListeningForMap: false,
+      setIsListeningForMap: vi.fn(),
+      sequenceKeyswitches: {},
+      setSequenceKeyswitches: vi.fn(),
+    });
+
+    const { container } = render(<StepSequencer />);
+    const pills = container.querySelectorAll('[data-step-index]');
+    
+    // Simulate pointer down on step 0 with Alt key
+    act(() => {
+      const eDown = new MouseEvent('pointerdown', { bubbles: true, cancelable: true });
+      Object.defineProperty(eDown, 'altKey', { value: true });
+      Object.defineProperty(eDown, 'pointerId', { value: 1 });
+      pills[0].dispatchEvent(eDown);
+    });
+
+    // Simulate pointer move over step 1
+    // We mock elementFromPoint to return a mock element with data-step-index="1"
+    const originalElementFromPoint = document.elementFromPoint;
+    const mockTarget = document.createElement('div');
+    mockTarget.setAttribute('data-step-index', '1');
+    document.elementFromPoint = () => mockTarget;
+
+    act(() => {
+      const eMove = new MouseEvent('pointermove', { bubbles: true, cancelable: true });
+      Object.defineProperty(eMove, 'clientX', { value: 10 });
+      Object.defineProperty(eMove, 'clientY', { value: 10 });
+      pills[0].dispatchEvent(eMove);
+    });
+
+    // Simulate pointer up
+    act(() => {
+      const eUp = new MouseEvent('pointerup', { bubbles: true, cancelable: true });
+      Object.defineProperty(eUp, 'pointerId', { value: 1 });
+      pills[0].dispatchEvent(eUp);
+    });
+
+    // Restore elementFromPoint
+    document.elementFromPoint = originalElementFromPoint;
+
+    // Check setSequence was called
+    expect(mockSetSequence).toHaveBeenCalled();
+    const updateFn = mockSetSequence.mock.calls[0][0];
+    const nextSequence = updateFn(mockSequence);
+    expect(nextSequence[1].notes).toEqual([60, 64]);
+  });
+
+  test('Phase 2: Given a note object with stepOffset: NaN, When computeMiniLayout runs, Assert the function completes successfully without freezing the main thread', () => {
+    const mockSequence = Array(8).fill(null).map(() => ({ notes: [] as any[], symbol: "" }));
+    mockSequence[0] = {
+      notes: [{ stepOffset: NaN, isTreble: true, accidental: '#' }],
+      symbol: 'C'
+    };
+
+    (useMidi as any).mockReturnValue({
+      keySignature: 'C Major',
+      lut: [],
+      updateActiveNotes: vi.fn(),
+      uiVelocity: 80,
+      sequence: mockSequence,
+      setSequence: vi.fn(),
+      mapSequenceToKeys: vi.fn(),
+      isListeningForMap: false,
+      setIsListeningForMap: vi.fn(),
+      sequenceKeyswitches: {},
+      setSequenceKeyswitches: vi.fn(),
+    });
+
+    const renderTask = () => render(<StepSequencer />);
+    expect(renderTask).not.toThrow();
+  });
 });
+

@@ -271,15 +271,28 @@ function applyZipper(notes: NotePosition[]): NotePosition[] {
     sorted.forEach(currentNote => {
         let currentLevel = 0;
         let placed = false;
+        let iter = 0;
 
-        while (!placed) {
+        while (!placed && iter < 50) {
+            iter++;
             if (!xLevels[currentLevel]) {
                 xLevels[currentLevel] = [];
             }
 
-            const collision = xLevels[currentLevel].some(placedNote => 
-                Math.abs(placedNote.ySteps - currentNote.ySteps) <= COLLISION_THRESHOLD
-            );
+            // Bug Trap & Sanitization
+            let safeYSteps = currentNote.ySteps;
+            if (!Number.isFinite(safeYSteps)) {
+                console.warn("BUG TRAP: Invalid ySteps detected in applyZipper layout", currentNote);
+                safeYSteps = 0; // Fallback to prevent math failure
+            }
+
+            const collision = xLevels[currentLevel].some(placedNote => {
+                let safePlacedYSteps = placedNote.ySteps;
+                if (!Number.isFinite(safePlacedYSteps)) {
+                    safePlacedYSteps = 0;
+                }
+                return Math.abs(safePlacedYSteps - safeYSteps) <= COLLISION_THRESHOLD;
+            });
 
             if (collision) {
                 currentLevel++;
@@ -289,6 +302,7 @@ function applyZipper(notes: NotePosition[]): NotePosition[] {
                 placed = true;
             }
         }
+        if (iter >= 50) console.error("CIRCUIT BREAKER TRIPPED: applyZipper layout loop exceeded 50 iterations.");
     });
 
     return sorted;

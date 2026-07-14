@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getDiatonicMap, SMuFL, getEnharmonicSpelling, transposeDiatonically, enforcePianoRange } from './notationMath';
+import { getDiatonicMap, SMuFL, getEnharmonicSpelling, transposeDiatonically, enforcePianoRange, assignXLevels } from './notationMath';
 
 describe('Phase 1: Diatonic Scale Generator', () => {
     it('should generate Gb Major correctly (Test Case 1)', () => {
@@ -170,6 +170,18 @@ describe('Phase 1: Math Utility Overhaul (enforcePianoRange)', () => {
         const original: number[] = [];
         const result = enforcePianoRange(proposed, original);
         expect(result).toEqual([60]);
+    });
+});
+
+describe('Phase 2: assignXLevels and applyZipper armoring', () => {
+    it('should complete layout safely when ySteps is NaN (Test Case 1)', () => {
+        const notes = [
+            { ySteps: NaN, note: 60 }
+        ];
+        const result = assignXLevels(notes);
+        expect(result).toBeDefined();
+        expect(result.length).toBe(1);
+        expect(result[0].xLevel).toBe(0);
     });
 });
 
