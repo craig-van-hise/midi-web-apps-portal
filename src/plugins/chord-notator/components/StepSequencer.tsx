@@ -393,6 +393,11 @@ export const StepSequencer: React.FC<StepSequencerProps> = ({ initialIsExpanded 
     const prev = seqUndoStack.current.pop()!;
     seqRedoStack.current.push(JSON.parse(JSON.stringify(sequenceRef.current)));
     setSequence(prev);
+
+    const activeIdx = selectedStepRef.current;
+    if (activeIdx !== null && prev[activeIdx]) {
+      updateActiveNotes(prev[activeIdx].notes || [], true, false, []);
+    }
   };
 
   const redoSeq = () => {
@@ -400,6 +405,11 @@ export const StepSequencer: React.FC<StepSequencerProps> = ({ initialIsExpanded 
     const next = seqRedoStack.current.pop()!;
     seqUndoStack.current.push(JSON.parse(JSON.stringify(sequenceRef.current)));
     setSequence(next);
+
+    const activeIdx = selectedStepRef.current;
+    if (activeIdx !== null && next[activeIdx]) {
+      updateActiveNotes(next[activeIdx].notes || [], true, false, []);
+    }
   };
 
   useEffect(() => { isRecordingRef.current = isRecording; }, [isRecording]);
@@ -408,6 +418,16 @@ export const StepSequencer: React.FC<StepSequencerProps> = ({ initialIsExpanded 
   useEffect(() => { sequenceRef.current = sequence; }, [sequence]);
   useEffect(() => { uiVelocityRef.current = uiVelocity; }, [uiVelocity]);
   useEffect(() => { selectedNotesRef.current = selectedNotes; }, [selectedNotes]);
+
+  useEffect(() => {
+    const handleBeforeTransform = () => {
+      if (selectedStepRef.current !== null) {
+        commitSeqState();
+      }
+    };
+    window.addEventListener('APP_TRANSFORM', handleBeforeTransform);
+    return () => window.removeEventListener('APP_TRANSFORM', handleBeforeTransform);
+  }, []);
   useEffect(() => { isExpandedRef.current = isExpanded; }, [isExpanded]);
   useEffect(() => { isWriteModeRef.current = isWriteMode; }, [isWriteMode]);
   useEffect(() => { accidentalOverrideRef.current = accidentalOverride; }, [accidentalOverride]);
@@ -416,16 +436,35 @@ export const StepSequencer: React.FC<StepSequencerProps> = ({ initialIsExpanded 
 
   useEffect(() => {
     const handleKeyCapture = (e: KeyboardEvent) => {
-      if (!isExpandedRef.current) return;
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
+      if (!isExpandedRef.current && selectedStepRef.current === null) return;
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+      const keyLower = e.key.toLowerCase();
+      if (isCmdOrCtrl && !e.shiftKey && keyLower === 'z') {
         e.stopImmediatePropagation();
         e.preventDefault();
-        if (e.shiftKey) redoSeq();
-        else undoSeq();
+        undoSeq();
+      } else if (isCmdOrCtrl && ((e.shiftKey && keyLower === 'z') || keyLower === 'y')) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        redoSeq();
       }
     };
+
+    const handleHistory = (e: any) => {
+      const rawAction = e.detail?.action || e.detail?.type || '';
+      const action = String(rawAction).toUpperCase();
+      if (selectedStepRef.current !== null || isExpandedRef.current) {
+        if (action === 'UNDO') undoSeq();
+        if (action === 'REDO') redoSeq();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyCapture, { capture: true });
-    return () => window.removeEventListener('keydown', handleKeyCapture, { capture: true });
+    window.addEventListener('APP_HISTORY', handleHistory);
+    return () => {
+      window.removeEventListener('keydown', handleKeyCapture, { capture: true });
+      window.removeEventListener('APP_HISTORY', handleHistory);
+    };
   }, []);
 
   const handleVoicePreservingNavigation = (direction: 'left' | 'right') => {
@@ -642,6 +681,14 @@ export const StepSequencer: React.FC<StepSequencerProps> = ({ initialIsExpanded 
     
     if (startStep === -1) return;
 
+    setSelectedStep(startStep);
+    selectedStepRef.current = startStep;
+
+    const hasModifier = e.shiftKey || e.metaKey || e.ctrlKey || e.altKey;
+    if (!hasModifier && sequenceRef.current[startStep]) {
+      updateActiveNotes(sequenceRef.current[startStep].notes || [], true, false, []);
+    }
+
     e.currentTarget.setPointerCapture(e.pointerId);
     
     const x = clickX - rect.left + seqCanvasRef.current!.scrollLeft;
@@ -655,9 +702,6 @@ export const StepSequencer: React.FC<StepSequencerProps> = ({ initialIsExpanded 
       currentY: y,
       startStep
     };
-
-    setSelectedStep(startStep);
-    selectedStepRef.current = startStep;
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -690,9 +734,8 @@ export const StepSequencer: React.FC<StepSequencerProps> = ({ initialIsExpanded 
     e.currentTarget.releasePointerCapture(e.pointerId);
 
     if (marqueeRef.current) {
-      marqueeRef.current.classList.add('hidden');
-      
       const marqueeRect = marqueeRef.current.getBoundingClientRect();
+      marqueeRef.current.classList.add('hidden');
       const startStep = dragTracker.current.startStep;
       
       if (startStep !== -1 && sequence[startStep]) {

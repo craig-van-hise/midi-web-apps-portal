@@ -1,11 +1,20 @@
-import React from 'react';
-import { render, screen, act } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
-import { StepSequencer, computeMiniLayout, snapTimelineGhostNote } from './StepSequencer';
-import { useMidi } from '../midi/MIDIProvider';
-import { audioEngine } from '../audio/engine';
-import { SMuFL } from '../utils/notationMath';
+
+vi.mock('tone', () => ({
+  Frequency: vi.fn((val: any) => ({
+    toNote: () => {
+      const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      const midi = Number(val);
+      if (isNaN(midi)) return 'C4';
+      const octave = Math.floor(midi / 12) - 1;
+      const noteName = names[midi % 12];
+      return `${noteName}${octave}`;
+    }
+  })),
+  context: {
+    state: 'running',
+  },
+}));
 
 vi.mock('../midi/MIDIProvider', () => ({
   useMidi: vi.fn(),
@@ -18,6 +27,14 @@ vi.mock('../audio/engine', () => ({
     releaseAll: vi.fn(),
   },
 }));
+
+import React from 'react';
+import { render, screen, act } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import { StepSequencer, computeMiniLayout, snapTimelineGhostNote } from './StepSequencer';
+import { useMidi } from '../midi/MIDIProvider';
+import { audioEngine } from '../audio/engine';
+import { SMuFL } from '../utils/notationMath';
 
 describe('StepSequencer Component UI & Copy Instructions', () => {
   const mockUpdateActiveNotes = vi.fn();
@@ -1527,6 +1544,414 @@ describe('StepSequencer Component UI & Copy Instructions', () => {
 
       // Assert setSequence was NOT called to add low pitch note from Write Mode pointer handler
       expect(mockSetSequence).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('PRP #149 - Expanded Sequencer Interactivity & History', () => {
+    test('Phase 1 Test Case 1: Marquee bounding box geometry read occurs before hiding DOM node', () => {
+      const step0Notes = [
+        { id: '1', note: 60, isTreble: false, stepOffset: 0, accidental: null },
+        { id: '2', note: 67, isTreble: true, stepOffset: 4, accidental: null }
+      ];
+      const seq = Array(16).fill(null).map(() => ({ notes: [], symbol: '' }));
+      seq[0] = { notes: step0Notes, symbol: 'C' };
+      (useMidi as any).mockReturnValue({
+        keySignature: 'C Major',
+        splitPoint: 60,
+        lut: [],
+        updateActiveNotes: mockUpdateActiveNotes,
+        uiVelocity: 80,
+        sequence: seq,
+        setSequence: vi.fn(),
+        mapSequenceToKeys: false,
+        setIsListeningForMap: vi.fn(),
+        sequenceKeyswitches: {},
+        setSequenceKeyswitches: vi.fn(),
+        selectedNotes: [],
+        isWriteMode: false,
+        setIsWriteMode: vi.fn(),
+        accidentalOverride: null,
+        setAccidentalOverride: vi.fn(),
+      });
+
+      render(<StepSequencer initialIsExpanded={true} />);
+
+      const seqCanvas = document.querySelector('.timeline-staff-area') || document.querySelector('.step-sequencer-expanded-container');
+      expect(seqCanvas).not.toBeNull();
+
+      const marquee = document.getElementById('step-sequencer-marquee');
+      if (marquee) {
+        marquee.getBoundingClientRect = vi.fn(() => ({
+          left: 0,
+          top: 0,
+          right: 200,
+          bottom: 200,
+          width: 200,
+          height: 200,
+          x: 0,
+          y: 0,
+          toJSON: () => {}
+        } as DOMRect));
+      }
+
+      const step0El = document.querySelector('[data-step-index="0"]');
+      expect(step0El).not.toBeNull();
+
+      const noteEls = step0El.querySelectorAll('[data-seq-note]');
+      noteEls.forEach(el => {
+        el.getBoundingClientRect = vi.fn(() => ({
+          left: 50,
+          top: 50,
+          right: 80,
+          bottom: 80,
+          width: 30,
+          height: 30,
+          x: 50,
+          y: 50,
+          toJSON: () => {}
+        } as DOMRect));
+      });
+
+      act(() => {
+        fireEvent.pointerDown(step0El, { clientX: 10, clientY: 10, button: 0 });
+        fireEvent.pointerMove(seqCanvas, { clientX: 100, clientY: 100 });
+        fireEvent.pointerUp(seqCanvas, { clientX: 100, clientY: 100 });
+      });
+
+      expect(mockUpdateActiveNotes).toHaveBeenCalledWith(
+        expect.anything(),
+        true,
+        false,
+        expect.arrayContaining([60, 67])
+      );
+    });
+
+    test('Phase 2 Test Case 1 & 2: Transposing step captures undo snapshot allowing Cmd+Z restoration', () => {
+      const step0Notes = [{ id: '1', note: 60, isTreble: false, stepOffset: 0, accidental: null }];
+      let seqState = Array(16).fill(null).map(() => ({ notes: [], symbol: '' }));
+      seqState[0] = { notes: step0Notes, symbol: 'C' };
+
+      const setSeqMock = vi.fn((updater) => {
+        if (typeof updater === 'function') {
+          seqState = updater(seqState);
+        } else {
+          seqState = updater;
+        }
+      });
+
+      (useMidi as any).mockReturnValue({
+        keySignature: 'C Major',
+        splitPoint: 60,
+        lut: [],
+        updateActiveNotes: mockUpdateActiveNotes,
+        uiVelocity: 80,
+        sequence: seqState,
+        setSequence: setSeqMock,
+        mapSequenceToKeys: false,
+        setIsListeningForMap: vi.fn(),
+        sequenceKeyswitches: {},
+        setSequenceKeyswitches: vi.fn(),
+        selectedNotes: [60],
+        isWriteMode: false,
+        setIsWriteMode: vi.fn(),
+        accidentalOverride: null,
+        setAccidentalOverride: vi.fn(),
+      });
+
+      render(<StepSequencer initialIsExpanded={true} />);
+
+      // Select step 0
+      const step0El = document.querySelector('[data-step-index="0"]');
+      act(() => {
+        fireEvent.pointerDown(step0El, { clientX: 10, clientY: 10, button: 0 });
+      });
+
+      // Dispatch APP_TRANSFORM event
+      act(() => {
+        window.dispatchEvent(new CustomEvent('APP_TRANSFORM', {
+          detail: { type: 'SEMI_UP', stepSize: 1, isUiClick: true }
+        }));
+      });
+
+      // Simulate refresh MIDI event from transposition (step 0 becomes [61])
+      const transposedNotes = [{ id: '1', note: 61, isTreble: false, stepOffset: 0, accidental: '#' }];
+      act(() => {
+        window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+          detail: { refresh: true, notes: transposedNotes }
+        }));
+      });
+
+      expect(setSeqMock).toHaveBeenCalled();
+
+      // Undo via Cmd+Z keydown on window
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true }));
+      });
+
+      expect(setSeqMock).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            notes: expect.arrayContaining([
+              expect.objectContaining({ note: 60 })
+            ])
+          })
+        ])
+      );
+    });
+  });
+
+  describe('PRP #150 - Sequencer Upstream Sync & Click-Away Deselection', () => {
+    test('Phase 1 Test Case 1 & 2: Undo and Redo push restored step notes upstream via updateActiveNotes', () => {
+      const step0Notes = [{ id: '1', note: 60, isTreble: false, stepOffset: 0, accidental: null }];
+      let seqState = Array(16).fill(null).map(() => ({ notes: [], symbol: '' }));
+      seqState[0] = { notes: step0Notes, symbol: 'C' };
+
+      const setSeqMock = vi.fn((updater) => {
+        if (typeof updater === 'function') {
+          seqState = updater(seqState);
+        } else {
+          seqState = updater;
+        }
+      });
+
+      (useMidi as any).mockReturnValue({
+        keySignature: 'C Major',
+        splitPoint: 60,
+        lut: [],
+        updateActiveNotes: mockUpdateActiveNotes,
+        uiVelocity: 80,
+        sequence: seqState,
+        setSequence: setSeqMock,
+        mapSequenceToKeys: false,
+        setIsListeningForMap: vi.fn(),
+        sequenceKeyswitches: {},
+        setSequenceKeyswitches: vi.fn(),
+        selectedNotes: [60],
+        isWriteMode: false,
+        setIsWriteMode: vi.fn(),
+        accidentalOverride: null,
+        setAccidentalOverride: vi.fn(),
+      });
+
+      render(<StepSequencer initialIsExpanded={true} />);
+
+      // Select step 0
+      const step0El = document.querySelector('[data-step-index="0"]');
+      act(() => {
+        fireEvent.pointerDown(step0El, { clientX: 10, clientY: 10, button: 0 });
+      });
+
+      // Dispatch APP_TRANSFORM event (causes commitSeqState)
+      act(() => {
+        window.dispatchEvent(new CustomEvent('APP_TRANSFORM', {
+          detail: { type: 'SEMI_UP', stepSize: 1, isUiClick: true }
+        }));
+      });
+
+      // Simulate step 0 updated to [61]
+      const transposedNotes = [{ id: '1', note: 61, isTreble: false, stepOffset: 0, accidental: '#' }];
+      act(() => {
+        window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+          detail: { refresh: true, notes: transposedNotes }
+        }));
+      });
+
+      mockUpdateActiveNotes.mockClear();
+
+      // Dispatch UNDO
+      act(() => {
+        window.dispatchEvent(new CustomEvent('APP_HISTORY', { detail: { action: 'UNDO' } }));
+      });
+
+      // Assert updateActiveNotes was called with original step 0 notes [60] and bypassMidiOut=true, selectedNotes=[]
+      expect(mockUpdateActiveNotes).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ note: 60 })]),
+        true,
+        false,
+        []
+      );
+
+      mockUpdateActiveNotes.mockClear();
+
+      // Dispatch REDO
+      act(() => {
+        window.dispatchEvent(new CustomEvent('APP_HISTORY', { detail: { action: 'REDO' } }));
+      });
+
+      // Assert updateActiveNotes was called with transposed step 0 notes [61]
+      expect(mockUpdateActiveNotes).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ note: 61 })]),
+        true,
+        false,
+        []
+      );
+    });
+
+    test('Phase 2 Test Case 1: Clicking empty staff space without modifier keys deselects all notes', () => {
+      const step0Notes = [{ id: '1', note: 60, isTreble: false, stepOffset: 0, accidental: null }];
+      const seqState = Array(16).fill(null).map(() => ({ notes: [], symbol: '' }));
+      seqState[0] = { notes: step0Notes, symbol: 'C' };
+
+      (useMidi as any).mockReturnValue({
+        keySignature: 'C Major',
+        splitPoint: 60,
+        lut: [],
+        updateActiveNotes: mockUpdateActiveNotes,
+        uiVelocity: 80,
+        sequence: seqState,
+        setSequence: vi.fn(),
+        mapSequenceToKeys: false,
+        setIsListeningForMap: vi.fn(),
+        sequenceKeyswitches: {},
+        setSequenceKeyswitches: vi.fn(),
+        selectedNotes: [60], // Note 60 is currently selected
+        isWriteMode: false,
+        setIsWriteMode: vi.fn(),
+        accidentalOverride: null,
+        setAccidentalOverride: vi.fn(),
+      });
+
+      render(<StepSequencer initialIsExpanded={true} />);
+
+      const step0El = document.querySelector('[data-step-index="0"]');
+      expect(step0El).not.toBeNull();
+
+      mockUpdateActiveNotes.mockClear();
+
+      // Click on step 0 staff canvas without modifier keys
+      act(() => {
+        fireEvent.pointerDown(step0El, { clientX: 20, clientY: 20, button: 0, shiftKey: false, metaKey: false, ctrlKey: false, altKey: false });
+      });
+
+      // Assert updateActiveNotes was called with selectedNotes = []
+      expect(mockUpdateActiveNotes).toHaveBeenCalledWith(
+        step0Notes,
+        true,
+        false,
+        []
+      );
+    });
+
+    test('Phase 2 Test Case 2: Clicking empty staff space with Shift modifier preserves selection', () => {
+      const step0Notes = [{ id: '1', note: 60, isTreble: false, stepOffset: 0, accidental: null }];
+      const seqState = Array(16).fill(null).map(() => ({ notes: [], symbol: '' }));
+      seqState[0] = { notes: step0Notes, symbol: 'C' };
+
+      (useMidi as any).mockReturnValue({
+        keySignature: 'C Major',
+        splitPoint: 60,
+        lut: [],
+        updateActiveNotes: mockUpdateActiveNotes,
+        uiVelocity: 80,
+        sequence: seqState,
+        setSequence: vi.fn(),
+        mapSequenceToKeys: false,
+        setIsListeningForMap: vi.fn(),
+        sequenceKeyswitches: {},
+        setSequenceKeyswitches: vi.fn(),
+        selectedNotes: [60],
+        isWriteMode: false,
+        setIsWriteMode: vi.fn(),
+        accidentalOverride: null,
+        setAccidentalOverride: vi.fn(),
+      });
+
+      render(<StepSequencer initialIsExpanded={true} />);
+
+      const step0El = document.querySelector('[data-step-index="0"]');
+      expect(step0El).not.toBeNull();
+
+      mockUpdateActiveNotes.mockClear();
+
+      // Click with Shift key pressed
+      act(() => {
+        fireEvent.pointerDown(step0El, { clientX: 20, clientY: 20, button: 0, shiftKey: true });
+      });
+
+      // Assert updateActiveNotes was NOT called with empty selection array []
+      expect(mockUpdateActiveNotes).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        []
+      );
+    });
+  });
+
+  describe('PRP #151 - Musical Chairs Bar Overwrite Prevention', () => {
+    test('Phase 1 Test Case 1: Clicking Bar 1 does not overwrite Bar 0 notes during synchronous refresh broadcast', () => {
+      const step0Notes = [
+        { id: '1', note: 60, isTreble: true, stepOffset: 0, accidental: null },
+        { id: '2', note: 64, isTreble: true, stepOffset: 2, accidental: null },
+        { id: '3', note: 67, isTreble: true, stepOffset: 4, accidental: null }
+      ];
+      const step1Notes = [
+        { id: '4', note: 67, isTreble: true, stepOffset: 4, accidental: null },
+        { id: '5', note: 71, isTreble: true, stepOffset: 6, accidental: null },
+        { id: '6', note: 74, isTreble: true, stepOffset: 8, accidental: null }
+      ];
+
+      let seqState = Array(16).fill(null).map(() => ({ notes: [], symbol: '' }));
+      seqState[0] = { notes: step0Notes, symbol: 'C' };
+      seqState[1] = { notes: step1Notes, symbol: 'G' };
+
+      const setSeqMock = vi.fn((updater) => {
+        if (typeof updater === 'function') {
+          seqState = updater(seqState);
+        } else {
+          seqState = updater;
+        }
+      });
+
+      // Synchronously dispatch MIDI_MESSAGE_RECEIVED event inside mock updateActiveNotes
+      const syncUpdateActiveNotes = vi.fn((notes, bypassMidiOut, isChordPill, selectedPitches) => {
+        window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+          detail: { refresh: true, notes }
+        }));
+      });
+
+      (useMidi as any).mockReturnValue({
+        keySignature: 'C Major',
+        splitPoint: 60,
+        lut: [],
+        updateActiveNotes: syncUpdateActiveNotes,
+        uiVelocity: 80,
+        sequence: seqState,
+        setSequence: setSeqMock,
+        mapSequenceToKeys: false,
+        setIsListeningForMap: vi.fn(),
+        sequenceKeyswitches: {},
+        setSequenceKeyswitches: vi.fn(),
+        selectedNotes: [],
+        isWriteMode: false,
+        setIsWriteMode: vi.fn(),
+        accidentalOverride: null,
+        setAccidentalOverride: vi.fn(),
+      });
+
+      render(<StepSequencer initialIsExpanded={true} />);
+
+      // Select step 0 first
+      const step0El = document.querySelector('[data-step-index="0"]');
+      act(() => {
+        fireEvent.pointerDown(step0El, { clientX: 10, clientY: 10, button: 0 });
+      });
+
+      const step1El = document.querySelector('[data-step-index="1"]');
+      expect(step1El).not.toBeNull();
+
+      // Click step 1 staff canvas
+      act(() => {
+        fireEvent.pointerDown(step1El, { clientX: 20, clientY: 20, button: 0 });
+      });
+
+      // Assert step 0 notes were NOT overwritten with G Major (note 71/74)
+      expect(seqState[0].notes).toEqual(
+        expect.arrayContaining([expect.objectContaining({ note: 60 })])
+      );
+      expect(seqState[0].notes).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({ note: 71 })])
+      );
     });
   });
 });

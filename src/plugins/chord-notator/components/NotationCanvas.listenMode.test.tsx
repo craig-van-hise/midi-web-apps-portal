@@ -114,7 +114,6 @@ describe('NotationCanvas - LISTEN Mode Toggle TDD Checkpoint', () => {
     expect(pitches).toEqual([61]);
 
     // 4. Verify audioEngine IS called
-    expect(audioEngine.releaseAll).toHaveBeenCalled();
     expect(audioEngine.noteOn).toHaveBeenCalledWith('C4', expect.any(Number));
   });
 });

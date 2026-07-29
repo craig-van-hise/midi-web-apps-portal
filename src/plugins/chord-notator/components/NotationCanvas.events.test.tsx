@@ -151,14 +151,8 @@ describe('NotationCanvas Event Bridge', () => {
     // Verify noteOn was called
     expect(audioEngine.noteOn).toHaveBeenCalled();
     
-    // Fast-forward time to verify note is NOT released automatically
+    // Fast-forward time to verify note is released automatically after 500ms
     vi.advanceTimersByTime(1000);
-    expect(audioEngine.releaseNote).not.toHaveBeenCalled();
-    
-    // Dispatch APP_TRANSFORM_OFF
-    window.dispatchEvent(new CustomEvent('APP_TRANSFORM_OFF'));
-    
-    // Verify note is released
     expect(audioEngine.releaseNote).toHaveBeenCalled();
     vi.useRealTimers();
   });

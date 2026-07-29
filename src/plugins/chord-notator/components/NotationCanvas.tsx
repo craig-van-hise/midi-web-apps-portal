@@ -95,12 +95,19 @@ const NotationCanvas: React.FC = () => {
   const handleNaturalClick = () => setAccidentalOverride(prev => prev === 'n' ? null : 'n');
   const handleSharpClick = () => setAccidentalOverride(prev => prev === '#' ? 'x' : prev === 'x' ? null : '#');
   
+  const activeTrebleShiftRef = useRef<number>(0);
+  const activeBassShiftRef = useRef<number>(0);
+  const activeStaffShiftsRef = useRef<{ trebleShift: number; bassShift: number }>({
+    trebleShift: 0,
+    bassShift: 0
+  });
+
   const commitState = () => {
-    undoStack.current.push(activeNotes.current.map(n => ({ ...n })));
+    undoStack.current.push(JSON.parse(JSON.stringify(activeNotes.current)));
     redoStack.current = []; // Clear redo stack on new action
     if (undoStack.current.length > 50) undoStack.current.shift(); // Max 50 states
   };
-  
+
   const playPreviewNotes = (noteStrings: string[], interrupt: boolean = true, velocity: number = 100) => {
     if (interrupt) {
         // Force note-offs for anything currently previewing
@@ -122,12 +129,6 @@ const NotationCanvas: React.FC = () => {
         activePreviews.current.set(noteStr, timeoutId);
     });
   };
-
-  
-  const activeStaffShiftsRef = useRef<{ trebleShift: number; bassShift: number }>({
-    trebleShift: 0,
-    bassShift: 0
-  });
 
   // 1. Update staffSpace from CSS
   useEffect(() => {
@@ -155,10 +156,9 @@ const NotationCanvas: React.FC = () => {
         visualStep = Math.round((relativeY + staffSpace) / (staffSpace / 2));
     }
 
-    const activeShift = visualStep >= 0 
-      ? activeStaffShiftsRef.current.trebleShift 
-      : activeStaffShiftsRef.current.bassShift;
-    const musicalStep = visualStep - activeShift;
+    const isTrebleRegion = visualStep >= -2;
+    const activeShift = isTrebleRegion ? activeTrebleShiftRef.current : activeBassShiftRef.current;
+    const logicalStepOffset = visualStep - activeShift;
 
     const snappedY = canvasCenterY - (((visualStep) * (staffSpace / 2)) + (relativeY >= 0 ? staffSpace : -staffSpace));
 
@@ -166,14 +166,13 @@ const NotationCanvas: React.FC = () => {
     if (ghost) {
         ghost.classList.remove('hidden');
         ghost.style.top = `${snappedY}px`;
-        (ghost as any).dataset.step = musicalStep.toString();
+        (ghost as any).dataset.step = logicalStepOffset.toString();
         
         const { midiNote, accidental } = calculateWriteModePitch(
-            visualStep, 
+            logicalStepOffset, 
             keySignatureRef.current, 
             accidentalOverrideRef.current, 
-            lutRef.current,
-            activeShift
+            lutRef.current
         );
         (ghost as any).dataset.midiNote = midiNote.toString();
         (ghost as any).dataset.accidental = accidental === null ? 'null' : accidental;
@@ -238,20 +237,12 @@ const NotationCanvas: React.FC = () => {
     recalculateLayout();
 
     if (listenModeRef.current && isUiClick) {
-      // Force note-offs for active previews to prevent smearing
-      try { audioEngine.releaseAll(); } catch(e) {}
-      
-      // Play the newly mutated pitches directly
       const transposedStrings = Array.from(selectedNoteIds.current)
         .map(id => activeNotes.current.find(n => n.id === id)?.note)
         .filter((n): n is number => typeof n === 'number')
         .map(pitch => Tone.Frequency(pitch, "midi").toNote());
 
-      transposedStrings.forEach(noteStr => {
-          if (Tone.context.state === 'running') {
-              try { audioEngine.noteOn(noteStr, uiVelocityRef.current / 127); } catch (e) { console.error(e); }
-          }
-      });
+      playPreviewNotes(transposedStrings, true, uiVelocityRef.current);
     }
     forceUpdate();
   };
@@ -306,20 +297,12 @@ const NotationCanvas: React.FC = () => {
     recalculateLayout();
 
     if (listenModeRef.current && isUiClick) {
-      // Force note-offs for active previews to prevent smearing
-      try { audioEngine.releaseAll(); } catch(e) {}
-      
-      // Play the newly mutated pitches directly
       const transposedStrings = Array.from(selectedNoteIds.current)
         .map(id => activeNotes.current.find(n => n.id === id)?.note)
         .filter((n): n is number => typeof n === 'number')
         .map(pitch => Tone.Frequency(pitch, "midi").toNote());
 
-      transposedStrings.forEach(noteStr => {
-          if (Tone.context.state === 'running') {
-              try { audioEngine.noteOn(noteStr, uiVelocityRef.current / 127); } catch (e) { console.error(e); }
-          }
-      });
+      playPreviewNotes(transposedStrings, true, uiVelocityRef.current);
     }
     forceUpdate();
   };
@@ -410,27 +393,19 @@ const NotationCanvas: React.FC = () => {
     recalculateLayout();
 
     if (listenModeRef.current && isUiClick) {
-      // Force note-offs for active previews to prevent smearing
-      try { audioEngine.releaseAll(); } catch(e) {}
-      
-      // Play the newly mutated pitches directly
       const transposedStrings = Array.from(selectedNoteIds.current)
         .map(id => activeNotes.current.find(n => n.id === id)?.note)
         .filter((n): n is number => typeof n === 'number')
         .map(pitch => Tone.Frequency(pitch, "midi").toNote());
 
-      transposedStrings.forEach(noteStr => {
-          if (Tone.context.state === 'running') {
-              try { audioEngine.noteOn(noteStr, uiVelocityRef.current / 127); } catch (e) { console.error(e); }
-          }
-      });
+      playPreviewNotes(transposedStrings, true, uiVelocityRef.current);
     }
     forceUpdate();
   };
 
   const undo = () => {
     if (undoStack.current.length > 0) {
-      redoStack.current.push(activeNotes.current.map(n => ({ ...n })));
+      redoStack.current.push(JSON.parse(JSON.stringify(activeNotes.current)));
       activeNotes.current = undoStack.current.pop() || [];
       selectedNoteIds.current.clear();
       chordIdentityRef.current.isActive = false; // ADDED FIX
@@ -443,7 +418,7 @@ const NotationCanvas: React.FC = () => {
 
   const redo = () => {
     if (redoStack.current.length > 0) {
-      undoStack.current.push(activeNotes.current.map(n => ({ ...n })));
+      undoStack.current.push(JSON.parse(JSON.stringify(activeNotes.current)));
       activeNotes.current = redoStack.current.pop() || [];
       selectedNoteIds.current.clear();
       chordIdentityRef.current.isActive = false; // ADDED FIX
@@ -523,6 +498,8 @@ const NotationCanvas: React.FC = () => {
         }
       }
 
+      activeTrebleShiftRef.current = trebleShift;
+      activeBassShiftRef.current = bassShift;
       activeStaffShiftsRef.current = {
         trebleShift,
         bassShift
@@ -871,16 +848,22 @@ const NotationCanvas: React.FC = () => {
           });
         }
 
-        if (targetSelection && targetSelection.length > 0) {
+        if (Array.isArray(targetSelection)) {
           selectedNoteIds.current.clear();
-          activeNotes.current.forEach(note => {
-            if (targetSelection.includes(note.note)) {
-              selectedNoteIds.current.add(note.id);
-              lastSelectedNoteId.current = note.id; // For shift-click support later
-            }
-          });
-          const selectedPitches = activeNotes.current.map(n => n.note).filter(p => targetSelection.includes(p));
-          setSelectedNotes?.(selectedPitches);
+          if (targetSelection.length > 0) {
+            activeNotes.current.forEach(note => {
+              if (targetSelection.includes(note.note)) {
+                selectedNoteIds.current.add(note.id);
+                lastSelectedNoteId.current = note.id; // For shift-click support later
+              }
+            });
+            const selectedPitches = activeNotes.current.map(n => n.note).filter(p => targetSelection.includes(p));
+            setSelectedNotes?.(selectedPitches);
+          } else {
+            // Explicit empty array = deselect all notes (click-away)
+            lastSelectedNoteId.current = null;
+            setSelectedNotes?.([]);
+          }
         } else if (selectNotes) {
           selectedNoteIds.current.clear();
           activeNotes.current.forEach(note => {
@@ -1201,8 +1184,9 @@ const NotationCanvas: React.FC = () => {
         const overrideString = getNoteNameFromPosition(step, targetAccidental, keySignatureRef.current, lutRef.current);
 
         commitState();
+        const newNoteId = generateId();
         activeNotes.current.push({
-            id: generateId(),
+            id: newNoteId,
             note: targetMidiNote,
             sourceMidi: targetMidiNote,
             stepOffset: step,
@@ -1213,10 +1197,18 @@ const NotationCanvas: React.FC = () => {
             channel: 0,
             status: 0x90
         });
+
+        // AUTO-SELECT THE NEWLY ADDED NOTE:
+        selectedNoteIds.current.clear();
+        selectedNoteIds.current.add(newNoteId);
+        lastSelectedNoteId.current = newNoteId;
+        setSelectedNotes?.([targetMidiNote]);
+
         updateSpellings();
         updateActiveNotes?.([...activeNotes.current]);
         playPreviewNotes([Tone.Frequency(targetMidiNote, "midi").toNote()], false);
-        return; // Early return to prevent selection logic
+        forceUpdate();
+        return;
       }
     }
     
@@ -1352,6 +1344,7 @@ const NotationCanvas: React.FC = () => {
       // Cmd/Ctrl + Z (Undo)
       if (isCmdOrCtrl && !e.shiftKey && keyLower === 'z') {
         e.preventDefault();
+        e.stopPropagation();
         undo();
         return;
       }
@@ -1359,6 +1352,7 @@ const NotationCanvas: React.FC = () => {
       // Cmd/Ctrl + Shift + Z or Cmd/Ctrl + Y (Redo)
       if (isCmdOrCtrl && ((e.shiftKey && keyLower === 'z') || keyLower === 'y')) {
         e.preventDefault();
+        e.stopPropagation();
         redo();
         return;
       }
