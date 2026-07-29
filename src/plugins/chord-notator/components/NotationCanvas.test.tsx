@@ -1,3 +1,12 @@
+/**
+ * 🛡️ PROTECTED REGRESSION SUITE — DO NOT MODIFY OR SKIP
+ * Verifies core invariants from .agent/rules/chord-notator-invariants.md including:
+ * - 1-to-1 voice cardinality and non-destructive voice crossing
+ * - Deep-cloned history stack traversal (Cmd+Z / Cmd+Shift+Z)
+ * - 500ms self-terminating audio preview timers
+ * - Marquee selection geometry and step sequencer synchronization
+ */
+
 // src/components/NotationCanvas.test.tsx
 // @ts-nocheck
 import React from 'react';
