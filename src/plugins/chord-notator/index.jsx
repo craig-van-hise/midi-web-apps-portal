@@ -8,6 +8,8 @@ import InfoModal from './components/InfoModal';
 import { TransformationsDrawer } from './components/toolbar/TransformationsDrawer';
 import { setMidiOutCallback } from './audio/engine';
 
+import { SMuFL } from './utils/notationMath';
+
 // Component to handle MIDI message listening and keyboard updates
 const MidiKeyboardUpdater = () => {
   const displayedNotes = useRef(new Set());
@@ -59,7 +61,7 @@ const ChordNotatorContent = ({
   showSettings,
   triggerPanic
 }) => {
-  const { dispatchVirtualMidi, dispatchPhysicalMidi, handleMidiPanic } = useMidi();
+  const { dispatchVirtualMidi, dispatchPhysicalMidi, handleMidiPanic, isWriteMode, setIsWriteMode, accidentalOverride, setAccidentalOverride } = useMidi();
   const [infoOpen, setInfoOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -103,6 +105,61 @@ const ChordNotatorContent = ({
           <NotationCanvas />
         </div>
         
+        {/* Relocated Write Mode Accidental Toolbar */}
+        {isWriteMode && (
+          <div 
+            title="Accidental Toolbox" 
+            className="w-full max-w-[962px] bg-white/95 dark:bg-[#111]/95 backdrop-blur-sm border border-[#aa3bff]/40 rounded-lg shadow-lg px-4 py-2 flex items-center justify-between text-xs select-none z-30"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-[#aa3bff] font-bold uppercase tracking-wider pr-3 border-r border-gray-300 dark:border-gray-700">Write Mode</span>
+              <button
+                onClick={() => setAccidentalOverride(prev => prev === 'bb' ? null : 'bb')}
+                title="Double Flat (bb)"
+                className={`px-2.5 py-1 rounded font-['Bravura'] text-lg transition-colors cursor-pointer ${accidentalOverride === 'bb' ? 'bg-[#aa3bff] text-white font-bold' : 'hover:bg-[#aa3bff]/10 text-black dark:text-gray-200'}`}
+              >
+                {SMuFL.accidentalDoubleFlat}
+              </button>
+              <button
+                onClick={() => setAccidentalOverride(prev => prev === 'b' ? null : 'b')}
+                title="Flat (b)"
+                className={`px-2.5 py-1 rounded font-['Bravura'] text-lg transition-colors cursor-pointer ${accidentalOverride === 'b' ? 'bg-[#aa3bff] text-white font-bold' : 'hover:bg-[#aa3bff]/10 text-black dark:text-gray-200'}`}
+              >
+                {SMuFL.accidentalFlat}
+              </button>
+              <button
+                onClick={() => setAccidentalOverride(prev => prev === 'n' ? null : 'n')}
+                title="Natural (n)"
+                className={`px-2.5 py-1 rounded font-['Bravura'] text-lg transition-colors cursor-pointer ${accidentalOverride === 'n' ? 'bg-[#aa3bff] text-white font-bold' : 'hover:bg-[#aa3bff]/10 text-black dark:text-gray-200'}`}
+              >
+                {SMuFL.accidentalNatural}
+              </button>
+              <button
+                onClick={() => setAccidentalOverride(prev => prev === '#' ? null : '#')}
+                title="Sharp (#)"
+                className={`px-2.5 py-1 rounded font-['Bravura'] text-lg transition-colors cursor-pointer ${accidentalOverride === '#' ? 'bg-[#aa3bff] text-white font-bold' : 'hover:bg-[#aa3bff]/10 text-black dark:text-gray-200'}`}
+              >
+                {SMuFL.accidentalSharp}
+              </button>
+              <button
+                onClick={() => setAccidentalOverride(prev => prev === 'x' ? null : 'x')}
+                title="Double Sharp (x)"
+                className={`px-2.5 py-1 rounded font-['Bravura'] text-lg transition-colors cursor-pointer ${accidentalOverride === 'x' ? 'bg-[#aa3bff] text-white font-bold' : 'hover:bg-[#aa3bff]/10 text-black dark:text-gray-200'}`}
+              >
+                {SMuFL.accidentalDoubleSharp}
+              </button>
+            </div>
+
+            <button
+              onClick={() => setIsWriteMode(false)}
+              title="Exit Write Mode"
+              className="px-3 py-1 rounded bg-[#aa3bff]/10 hover:bg-[#aa3bff]/20 text-[#aa3bff] font-bold text-xs transition-colors cursor-pointer"
+            >
+              WRITE MODE ✕
+            </button>
+          </div>
+        )}
+
         <StepSequencer />
         
         {/* The strict anchor wrapper */}

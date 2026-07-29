@@ -754,6 +754,44 @@ describe('NotationCanvas - Hardware Reconciliation (Phase 2 fix)', () => {
         expect(acc66?.textContent).toBe(SMuFL.accidentalFlat);
       });
     });
+
+    test('Given a refresh event with targetSelection: [64], Assert selectedNotes in NotationCanvas only contains pitch 64', async () => {
+      let selectedNotesVal = [];
+      const mockSetSelectedNotes = vi.fn((val) => {
+        selectedNotesVal = val;
+      });
+      (useMidi as any).mockReturnValue({
+        keySignature: 'C Major',
+        splitPoint: 60,
+        lut: [],
+        updateActiveNotes: mockUpdateActiveNotes,
+        selectedNotes: selectedNotesVal,
+        setSelectedNotes: mockSetSelectedNotes
+      });
+
+      render(<NotationCanvas />);
+      
+      act(() => {
+        window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+          detail: { data: new Uint8Array([0x90, 60, 100]) }
+        }));
+        window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+          detail: { data: new Uint8Array([0x90, 64, 100]) }
+        }));
+      });
+
+      act(() => {
+        window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+          detail: {
+            refresh: true,
+            notes: [{ note: 60, id: 'n60' }, { note: 64, id: 'n64' }],
+            targetSelection: [64]
+          }
+        }));
+      });
+
+      expect(mockSetSelectedNotes).toHaveBeenCalledWith([64]);
+    });
   });
 });
 

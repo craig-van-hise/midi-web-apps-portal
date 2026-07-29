@@ -810,7 +810,7 @@ const NotationCanvas: React.FC = () => {
   useEffect(() => {
     const handleMidiMessage = (event: Event) => {
       const customEvent = event as CustomEvent;
-      const { data, panic, refresh, notes, isVirtual, clearIdentity, selectNotes } = customEvent.detail || {};
+      const { data, panic, refresh, notes, isVirtual, clearIdentity, selectNotes, targetSelection } = customEvent.detail || {};
 
       if (panic) {
         activeNotes.current = [];
@@ -848,7 +848,17 @@ const NotationCanvas: React.FC = () => {
           });
         }
 
-        if (selectNotes) {
+        if (targetSelection && targetSelection.length > 0) {
+          selectedNoteIds.current.clear();
+          activeNotes.current.forEach(note => {
+            if (targetSelection.includes(note.note)) {
+              selectedNoteIds.current.add(note.id);
+              lastSelectedNoteId.current = note.id; // For shift-click support later
+            }
+          });
+          const selectedPitches = activeNotes.current.map(n => n.note).filter(p => targetSelection.includes(p));
+          setSelectedNotes?.(selectedPitches);
+        } else if (selectNotes) {
           selectedNoteIds.current.clear();
           activeNotes.current.forEach(note => {
             selectedNoteIds.current.add(note.id);

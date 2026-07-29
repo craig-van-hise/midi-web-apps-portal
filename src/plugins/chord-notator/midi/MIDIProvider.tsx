@@ -27,7 +27,7 @@ interface MidiContextType {
   setIsHoldModeActive: (b: boolean) => void;
   dispatchVirtualMidi: (data: Uint8Array) => void;
   dispatchPhysicalMidi: (data: Uint8Array) => void;
-  updateActiveNotes: (notes: any[], clearIdentity?: boolean, selectNotes?: boolean) => void;
+  updateActiveNotes: (notes: any[], clearIdentity?: boolean, selectNotes?: boolean, targetSelection?: number[]) => void;
   lut: (PCS_Entry | null)[];
   selectedNotes: number[];
   setSelectedNotes: (notes: number[]) => void;
@@ -56,6 +56,10 @@ interface MidiContextType {
   setSequence: React.Dispatch<React.SetStateAction<Array<{notes: any[], symbol: string}>>>;
   isListeningForMap: boolean;
   setIsListeningForMap: React.Dispatch<React.SetStateAction<boolean>>;
+  isWriteMode: boolean;
+  setIsWriteMode: React.Dispatch<React.SetStateAction<boolean>>;
+  accidentalOverride: 'b' | 'bb' | 'n' | '#' | 'x' | null;
+  setAccidentalOverride: React.Dispatch<React.SetStateAction<'b' | 'bb' | 'n' | '#' | 'x' | null>>;
 }
 
 const MidiContext = createContext<MidiContextType | undefined>(undefined);
@@ -176,17 +180,21 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const saved = localStorage.getItem('chord_notator_sequence');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length === 8) {
-          return parsed;
+        if (Array.isArray(parsed)) {
+          if (parsed.length === 12) return parsed;
+          // Migrate legacy 8-bar saves
+          if (parsed.length === 8) return [...parsed, ...Array(4).fill({ notes: [], symbol: '' })];
         }
       }
     } catch (e) {
       console.error('Failed to load saved sequencer sequence:', e);
     }
-    return Array(8).fill({ notes: [], symbol: '' });
+    return Array(12).fill({ notes: [], symbol: '' });
   });
 
   const [isListeningForMap, setIsListeningForMap] = useState<boolean>(false);
+  const [isWriteMode, setIsWriteMode] = useState<boolean>(false);
+  const [accidentalOverride, setAccidentalOverride] = useState<'b' | 'bb' | 'n' | '#' | 'x' | null>(null);
 
   const pendingNoteOffs = React.useRef<Set<number>>(new Set());
   const activeTransformationNotesRef = React.useRef<Map<number, number[]>>(new Map());
@@ -580,13 +588,14 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setSelectedOutputId(portId);
   };
 
-  const updateActiveNotes = useCallback((notes: any[], clearIdentity?: boolean, selectNotes?: boolean) => {
+  const updateActiveNotes = useCallback((notes: any[], clearIdentity?: boolean, selectNotes?: boolean, targetSelection?: number[]) => {
     const refreshEvent = new CustomEvent('MIDI_MESSAGE_RECEIVED', {
       detail: { 
         refresh: true,
         notes,
         clearIdentity,
-        selectNotes
+        selectNotes,
+        targetSelection
       }
     });
     window.dispatchEvent(refreshEvent);
@@ -641,6 +650,10 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setSequence,
         isListeningForMap,
         setIsListeningForMap,
+        isWriteMode,
+        setIsWriteMode,
+        accidentalOverride,
+        setAccidentalOverride,
       }}
     >
       {children}

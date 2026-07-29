@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useMidi } from '../midi/MIDIProvider';
-import { SMuFL, assignXLevels } from '../utils/notationMath';
+import { SMuFL, assignXLevels, calculateWriteModePitch, transposeDiatonically, AccidentalOverride } from '../utils/notationMath';
 import { getChordSymbol } from '../utils/chordSpeller';
 import { audioEngine } from '../audio/engine';
 import * as Tone from 'tone';
-import { Copy, Trash2, Keyboard } from 'lucide-react';
+import { Copy, Trash2, Keyboard, Maximize2, Minimize2 } from 'lucide-react';
 
 const MINI_STAFF = 5;
 
@@ -18,21 +18,50 @@ const generateId = () => {
 
 
 // Mathematically identical port of the NotationCanvas layout engine, scaled for the mini-staff
-const computeMiniLayout = (rawNotes: any[], miniStaff: number) => {
+export const computeMiniLayout = (rawNotes: any[], miniStaff: number) => {
+  const ottavaLabels: any[] = [];
   const trebleNotes = rawNotes.filter(n => n.isTreble);
   const bassNotes = rawNotes.filter(n => !n.isTreble);
+
+  let trebleShift = 0;
+  let trebleLabel: { glyph: string; suffix: string } | null = null;
+  if (trebleNotes.length > 0) {
+    const maxTrebleStep = Math.max(...trebleNotes.map(n => n.stepOffset));
+    const minTrebleStep = Math.min(...trebleNotes.map(n => n.stepOffset));
+    if (maxTrebleStep >= 25 && minTrebleStep - 14 >= -2) {
+      trebleShift = -14; trebleLabel = { glyph: SMuFL.quindicesima, suffix: 'ma' };
+    } else if (maxTrebleStep >= 18 && minTrebleStep - 7 >= -2) {
+      trebleShift = -7; trebleLabel = { glyph: SMuFL.ottava, suffix: 'va' };
+    }
+  }
+
+  let bassShift = 0;
+  let bassLabel: { glyph: string; suffix: string } | null = null;
+  if (bassNotes.length > 0) {
+    const minBassStep = Math.min(...bassNotes.map(n => n.stepOffset));
+    const maxBassStep = Math.max(...bassNotes.map(n => n.stepOffset));
+    if (minBassStep <= -22 && maxBassStep + 14 <= 2) {
+      bassShift = 14; bassLabel = { glyph: SMuFL.quindicesima, suffix: 'mb' };
+    } else if (minBassStep <= -15 && maxBassStep + 7 <= 2) {
+      bassShift = 7; bassLabel = { glyph: SMuFL.ottava, suffix: 'vb' };
+    }
+  }
 
   const NOTE_OFFSET_X_PX = miniStaff * 1.2;
   const PADDING_PX = 2; 
   const ACC_WIDTH_PX = miniStaff * 1.2;
 
-  const processGroup = (groupRaw: any[], isTreble: boolean) => {
-    const groupNotes = groupRaw.map(n => ({
-      ...n,
-      ySteps: n.stepOffset,
-      finalStep: n.stepOffset,
-      y: (n.stepOffset * (miniStaff / 2)) + miniStaff - (!isTreble ? (2 * miniStaff) : 0)
-    }));
+  const processGroup = (groupRaw: any[], shift: number, isTreble: boolean) => {
+    const groupNotes = groupRaw.map(n => {
+      const finalStep = n.stepOffset + shift;
+      const y = (finalStep * (miniStaff / 2)) + miniStaff - (!isTreble ? (2 * miniStaff) : 0);
+      return {
+        ...n,
+        ySteps: finalStep,
+        finalStep,
+        y
+      };
+    });
 
     const assigned = assignXLevels(groupNotes).map(n => ({...n}));
     const leftNotes = assigned.filter(n => !n.isRightColumn);
@@ -170,14 +199,89 @@ const computeMiniLayout = (rawNotes: any[], miniStaff: number) => {
       processAccColumns(assigned.filter(n => n.isRightColumn && (!!n.accidental || n.forceAccidentalDisplay)), rightBaseX);
     }
 
+    if (isTreble && trebleLabel && assigned.length > 0) {
+      const highest = assigned.reduce((prev, curr) => (curr.finalStep > prev.finalStep) ? curr : prev);
+      ottavaLabels.push({ data: trebleLabel, y: highest.y, type: 'treble', offset: -miniStaff * 2.8 });
+    }
+    if (!isTreble && bassLabel && assigned.length > 0) {
+      const lowest = assigned.reduce((prev, curr) => (curr.finalStep < prev.finalStep) ? curr : prev);
+      ottavaLabels.push({ data: bassLabel, y: lowest.y, type: 'bass', offset: miniStaff * 0.8 });
+    }
+
     return assigned;
   };
 
-  return [...processGroup(trebleNotes, true), ...processGroup(bassNotes, false)];
+  const processedNotes = [...processGroup(trebleNotes, trebleShift, true), ...processGroup(bassNotes, bassShift, false)];
+  const result: any = processedNotes;
+  result.notes = processedNotes;
+  result.trebleShift = trebleShift;
+  result.bassShift = bassShift;
+  result.trebleLabel = trebleLabel;
+  result.bassLabel = bassLabel;
+  result.ottavaLabels = ottavaLabels;
+
+  return result;
 };
 
-export const StepSequencer: React.FC = () => {
-  const { keySignature, lut, updateActiveNotes, uiVelocity, sequence, setSequence, mapSequenceToKeys, isListeningForMap, setIsListeningForMap, sequenceKeyswitches, setSequenceKeyswitches } = useMidi() as any;
+export const snapTimelineGhostNote = (
+  clientY: number,
+  rectOrEl: DOMRect | HTMLElement | any,
+  currentStaffSpace: number,
+  keySignature: string,
+  accidental: AccidentalOverride,
+  lut?: any[]
+) => {
+  const rect = typeof rectOrEl?.getBoundingClientRect === 'function' ? rectOrEl.getBoundingClientRect() : rectOrEl;
+  const pointerY = clientY - (rect.top || 0);
+  const staffHeight = rect.height || 280;
+
+  if (pointerY < 0 || pointerY > staffHeight) {
+    const ghost = document.getElementById('timeline-ghost-note');
+    if (ghost) ghost.classList.add('hidden');
+    return { isOutOfBounds: true, stepOffset: 0, snappedY: 0, midiNote: 60, calculatedAcc: null };
+  }
+
+  const canvasCenterY = staffHeight / 2;
+  const relativeY = canvasCenterY - pointerY;
+  let stepOffset = 0;
+
+  if (relativeY >= 0) {
+    stepOffset = Math.round((relativeY - currentStaffSpace) / (currentStaffSpace / 2));
+  } else {
+    stepOffset = Math.round((relativeY + currentStaffSpace) / (currentStaffSpace / 2));
+  }
+
+  const snappedY = canvasCenterY - (((stepOffset) * (currentStaffSpace / 2)) + (relativeY >= 0 ? currentStaffSpace : -currentStaffSpace));
+
+  const ghost = document.getElementById('timeline-ghost-note');
+  if (ghost) {
+    ghost.classList.remove('hidden');
+    ghost.style.top = `${snappedY}px`;
+    (ghost as any).dataset.step = stepOffset.toString();
+    
+    const { midiNote, accidental: calcAcc } = calculateWriteModePitch(stepOffset, keySignature, accidental, lut || []);
+    (ghost as any).dataset.midiNote = midiNote.toString();
+    (ghost as any).dataset.accidental = calcAcc === null ? 'null' : calcAcc;
+    
+    const accElement = document.getElementById('timeline-ghost-accidental');
+    if (accElement) accElement.textContent = calcAcc || '';
+  }
+
+  const { midiNote, accidental: calculatedAcc } = calculateWriteModePitch(stepOffset, keySignature, accidental, lut || []);
+  return { isOutOfBounds: false, stepOffset, snappedY, midiNote, calculatedAcc };
+};
+
+export interface StepSequencerProps {
+  initialIsExpanded?: boolean;
+}
+
+export const StepSequencer: React.FC<StepSequencerProps> = ({ initialIsExpanded = false }) => {
+  const { keySignature, lut, updateActiveNotes, uiVelocity, sequence, setSequence, mapSequenceToKeys, isListeningForMap, setIsListeningForMap, sequenceKeyswitches, setSequenceKeyswitches, selectedNotes, isWriteMode = false, setIsWriteMode = () => {}, accidentalOverride = null, setAccidentalOverride = () => {} } = useMidi() as any;
+  const [isExpanded, setIsExpanded] = useState(initialIsExpanded);
+  const miniStaff = isExpanded ? 11 : 5;
+  const braceLeftPx = isExpanded ? 24 : 12;
+  const lineStartPx = isExpanded ? 24 : 12;
+  const clefLeftPx = isExpanded ? 34 : 18;
   const [isRecording, setIsRecording] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedStep, setSelectedStep] = useState<number | null>(null);
@@ -235,49 +339,175 @@ export const StepSequencer: React.FC = () => {
   const isRecordingRef = useRef(isRecording);
   const stepRef = useRef(currentStep);
   const activeKeys = useRef(0);
+  const marqueeRef = useRef<HTMLDivElement>(null);
+  const seqCanvasRef = useRef<HTMLDivElement>(null);
+  const dragTracker = useRef({ isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, startStep: -1 });
   const lastSeenChord = useRef<any[]>([]);
   const selectedStepRef = useRef<number | null>(null);
   const sequenceRef = useRef(sequence);
   const uiVelocityRef = useRef(uiVelocity);
+  const activePreviews = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const activeChordNotesRef = useRef<string[]>([]);
+
+  const playPreviewNotes = (noteStrings: string[], interrupt: boolean = true, velocity: number = uiVelocityRef.current) => {
+    if (interrupt) {
+      activePreviews.current.forEach((timeoutId, noteStr) => {
+        clearTimeout(timeoutId);
+        try { audioEngine.releaseNote(noteStr); } catch(err) {}
+      });
+      activePreviews.current.clear();
+      try { audioEngine.releaseAll(); } catch(err) {}
+    }
+
+    const normalizedVelocity = velocity / 127;
+
+    noteStrings.forEach(noteStr => {
+      try { Tone.context.resume(); } catch(err) {}
+      try { audioEngine.noteOn(noteStr, normalizedVelocity); } catch(err) {}
+      const timeoutId = setTimeout(() => {
+        try { audioEngine.releaseNote(noteStr); } catch(err) {}
+        activePreviews.current.delete(noteStr);
+      }, 500);
+      activePreviews.current.set(noteStr, timeoutId);
+    });
+  };
+
+  const selectedNotesRef = useRef(selectedNotes);
+  const isExpandedRef = useRef(isExpanded);
+  const isWriteModeRef = useRef(isWriteMode);
+  const accidentalOverrideRef = useRef(accidentalOverride);
+  const keySignatureRef = useRef(keySignature);
+  const lutRef = useRef(lut);
+
+  const seqUndoStack = useRef<any[][]>([]);
+  const seqRedoStack = useRef<any[][]>([]);
+
+  const commitSeqState = () => {
+    seqUndoStack.current.push(JSON.parse(JSON.stringify(sequenceRef.current)));
+    seqRedoStack.current = [];
+    if (seqUndoStack.current.length > 50) seqUndoStack.current.shift();
+  };
+
+  const undoSeq = () => {
+    if (seqUndoStack.current.length === 0) return;
+    const prev = seqUndoStack.current.pop()!;
+    seqRedoStack.current.push(JSON.parse(JSON.stringify(sequenceRef.current)));
+    setSequence(prev);
+  };
+
+  const redoSeq = () => {
+    if (seqRedoStack.current.length === 0) return;
+    const next = seqRedoStack.current.pop()!;
+    seqUndoStack.current.push(JSON.parse(JSON.stringify(sequenceRef.current)));
+    setSequence(next);
+  };
 
   useEffect(() => { isRecordingRef.current = isRecording; }, [isRecording]);
   useEffect(() => { stepRef.current = currentStep; }, [currentStep]);
   useEffect(() => { selectedStepRef.current = selectedStep; }, [selectedStep]);
   useEffect(() => { sequenceRef.current = sequence; }, [sequence]);
   useEffect(() => { uiVelocityRef.current = uiVelocity; }, [uiVelocity]);
+  useEffect(() => { selectedNotesRef.current = selectedNotes; }, [selectedNotes]);
+  useEffect(() => { isExpandedRef.current = isExpanded; }, [isExpanded]);
+  useEffect(() => { isWriteModeRef.current = isWriteMode; }, [isWriteMode]);
+  useEffect(() => { accidentalOverrideRef.current = accidentalOverride; }, [accidentalOverride]);
+  useEffect(() => { keySignatureRef.current = keySignature; }, [keySignature]);
+  useEffect(() => { lutRef.current = lut; }, [lut]);
+
+  useEffect(() => {
+    const handleKeyCapture = (e: KeyboardEvent) => {
+      if (!isExpandedRef.current) return;
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        if (e.shiftKey) redoSeq();
+        else undoSeq();
+      }
+    };
+    window.addEventListener('keydown', handleKeyCapture, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyCapture, { capture: true });
+  }, []);
+
+  const handleVoicePreservingNavigation = (direction: 'left' | 'right') => {
+    const currentStepIdx = selectedStepRef.current ?? 0;
+    let targetStepIdx = currentStepIdx + (direction === 'right' ? 1 : -1);
+    if (targetStepIdx < 0) targetStepIdx = 0;
+    if (targetStepIdx > 11) targetStepIdx = 11;
+
+    const currentBar = sequenceRef.current[currentStepIdx];
+    const targetBar = sequenceRef.current[targetStepIdx];
+    if (!targetBar) return;
+
+    // 1. Sort current bar notes descending by pitch
+    const currentSorted = [...(currentBar?.notes || [])].sort((a, b) => {
+      const pitchA = typeof a === 'object' ? a.note : a;
+      const pitchB = typeof b === 'object' ? b.note : b;
+      return pitchB - pitchA;
+    });
+
+    // 2. Identify active voice indices
+    const activeVoiceIndices = currentSorted
+      .map((n, idx) => {
+        const pitch = typeof n === 'object' ? n.note : n;
+        return selectedNotesRef.current?.includes(pitch) ? idx : -1;
+      })
+      .filter(idx => idx !== -1);
+
+    // 3. Map voice indices onto target bar
+    const targetSorted = [...(targetBar.notes || [])].sort((a, b) => {
+      const pitchA = typeof a === 'object' ? a.note : a;
+      const pitchB = typeof b === 'object' ? b.note : b;
+      return pitchB - pitchA;
+    });
+
+    let newSelectedPitches: number[] = [];
+
+    if (activeVoiceIndices.length > 0 && activeVoiceIndices.length < currentSorted.length) {
+      // Preserve voice indices (guarded by target pitch count)
+      newSelectedPitches = activeVoiceIndices
+        .map(idx => {
+          const item = targetSorted[idx];
+          return typeof item === 'object' ? item?.note : item;
+        })
+        .filter((pitch): pitch is number => typeof pitch === 'number' && !isNaN(pitch));
+    } else {
+      // If entire chord was selected (or no selection), select full target chord
+      newSelectedPitches = targetSorted
+        .map(n => typeof n === 'object' ? n.note : n)
+        .filter((pitch): pitch is number => typeof pitch === 'number' && !isNaN(pitch));
+    }
+
+    setSelectedStep(targetStepIdx);
+    selectedStepRef.current = targetStepIdx;
+
+    updateActiveNotes(targetBar.notes, true, false, newSelectedPitches);
+
+    if (newSelectedPitches.length > 0) {
+      const noteStrs = newSelectedPitches.map(p => Tone.Frequency(p, "midi").toNote());
+      playPreviewNotes(noteStrs);
+    }
+  };
+
+  useEffect(() => {
+    const activeIndex = selectedStep !== null ? selectedStep : currentStep;
+    const activeElement = document.getElementById(`seq-bar-${activeIndex}`);
+    if (activeElement && typeof activeElement.scrollIntoView === 'function') {
+      activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }
+  }, [currentStep, selectedStep]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsRecording(false);
+      if (e.key === 'Escape') {
+        setIsRecording(false);
+        setIsWriteMode(false);
+        const ghost = document.getElementById('timeline-ghost-note');
+        if (ghost) ghost.classList.add('hidden');
+      }
       
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        // Block page scrolling defaults
         e.preventDefault(); 
-        
-        let nextStep = selectedStepRef.current === null ? 0 : selectedStepRef.current + (e.key === 'ArrowRight' ? 1 : -1);
-        if (nextStep < 0) nextStep = 0;
-        if (nextStep > 7) nextStep = 7;
-        
-        setSelectedStep(nextStep);
-        selectedStepRef.current = nextStep;
-        
-        const targetBar = sequenceRef.current[nextStep];
-        if (targetBar) {
-          // Inject current notes array directly into core display provider context
-          updateActiveNotes(targetBar.notes, true, true);
-          
-          if (targetBar.notes.length > 0) {
-            try { Tone.context.resume(); } catch(err){}
-            try { audioEngine.releaseAll(); } catch(err){}
-            targetBar.notes.forEach((n: any) => {
-              const noteStr = Tone.Frequency(n.note, "midi").toNote();
-              try { audioEngine.noteOn(noteStr, uiVelocityRef.current / 127); } catch(err){}
-              setTimeout(() => {
-                try { audioEngine.releaseNote(noteStr); } catch(err){}
-              }, 500);
-            });
-          }
-        }
+        handleVoicePreservingNavigation(e.key === 'ArrowRight' ? 'right' : 'left');
       }
     };
     window.addEventListener('keydown', handleKey);
@@ -325,7 +555,7 @@ export const StepSequencer: React.FC = () => {
           const stepHasNotes = sequenceRef.current[stepRef.current]?.notes?.length > 0;
           if (stepHasNotes) {
             setCurrentStep(s => {
-              if (s >= 7) {
+              if (s >= 11) {
                 setIsRecording(false);
                 return 0; 
               }
@@ -340,6 +570,160 @@ export const StepSequencer: React.FC = () => {
     return () => window.removeEventListener('MIDI_MESSAGE_RECEIVED', handleMidi);
   }, [keySignature, lut]);
 
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    if (!isExpanded) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('[data-seq-note]')) return;
+
+    if (isWriteModeRef.current) {
+      const clickX = e.clientX;
+      const clickY = e.clientY;
+      const elem = typeof document.elementFromPoint === 'function' ? document.elementFromPoint(clickX, clickY) : null;
+      const stepEl = elem?.closest('[data-step-index]');
+      if (stepEl) {
+        const staffCanvasEl = (stepEl.querySelector('.staff-canvas-area') as HTMLElement) || (stepEl as HTMLElement);
+        const { isOutOfBounds, stepOffset: quantizedStepOffset, midiNote, calculatedAcc: accidental } = snapTimelineGhostNote(
+          clickY,
+          staffCanvasEl,
+          miniStaff,
+          keySignatureRef.current,
+          accidentalOverrideRef.current,
+          lutRef.current
+        );
+        if (isOutOfBounds) return;
+        commitSeqState();
+        const stepIdx = parseInt(stepEl.getAttribute('data-step-index') || '0', 10);
+        const isTreble = quantizedStepOffset >= -2;
+        const newNoteObj = {
+          id: generateId(),
+          note: midiNote,
+          stepOffset: quantizedStepOffset,
+          isTreble,
+          accidental,
+          forceAccidentalDisplay: !!accidental
+        };
+
+        const existingBar = sequenceRef.current[stepIdx] || { notes: [], symbol: '' };
+        const updatedNotes = [...(existingBar.notes || []), newNoteObj];
+        const updatedPitches = updatedNotes.map((n: any) => typeof n === 'object' ? n.note : n);
+        const symbol = getChordSymbol(updatedPitches, keySignatureRef.current, lutRef.current);
+
+        setSelectedStep(stepIdx);
+        selectedStepRef.current = stepIdx;
+
+        setSequence((prev: any[]) => {
+          const next = [...prev];
+          next[stepIdx] = { notes: updatedNotes, symbol };
+          return next;
+        });
+
+        updateActiveNotes(updatedNotes, true, false, [midiNote]);
+        playPreviewNotes([Tone.Frequency(midiNote, "midi").toNote()]);
+      }
+      return;
+    }
+
+    const rect = seqCanvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const clickX = e.clientX;
+    const clickY = e.clientY;
+    const elem = typeof document.elementFromPoint === 'function' ? document.elementFromPoint(clickX, clickY) : null;
+    const stepEl = elem?.closest('[data-step-index]');
+    let startStep = -1;
+    if (stepEl) {
+      startStep = parseInt(stepEl.getAttribute('data-step-index') || '', 10);
+    }
+    
+    if (startStep === -1) return;
+
+    e.currentTarget.setPointerCapture(e.pointerId);
+    
+    const x = clickX - rect.left + seqCanvasRef.current!.scrollLeft;
+    const y = clickY - rect.top;
+
+    dragTracker.current = {
+      isDragging: true,
+      startX: x,
+      startY: y,
+      currentX: x,
+      currentY: y,
+      startStep
+    };
+
+    setSelectedStep(startStep);
+    selectedStepRef.current = startStep;
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isExpanded) return;
+    if (!dragTracker.current.isDragging || !seqCanvasRef.current || !marqueeRef.current) return;
+    
+    const rect = seqCanvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left + seqCanvasRef.current.scrollLeft;
+    const y = e.clientY - rect.top;
+
+    dragTracker.current.currentX = x;
+    dragTracker.current.currentY = y;
+
+    const { startX, startY } = dragTracker.current;
+    const left = Math.min(startX, x);
+    const top = Math.min(startY, y);
+    const width = Math.abs(startX - x);
+    const height = Math.abs(startY - y);
+
+    marqueeRef.current.style.left = `${left}px`;
+    marqueeRef.current.style.top = `${top}px`;
+    marqueeRef.current.style.width = `${width}px`;
+    marqueeRef.current.style.height = `${height}px`;
+    marqueeRef.current.classList.remove('hidden');
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!isExpanded || !dragTracker.current.isDragging) return;
+    dragTracker.current.isDragging = false;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+
+    if (marqueeRef.current) {
+      marqueeRef.current.classList.add('hidden');
+      
+      const marqueeRect = marqueeRef.current.getBoundingClientRect();
+      const startStep = dragTracker.current.startStep;
+      
+      if (startStep !== -1 && sequence[startStep]) {
+        const notesInStep = document.querySelectorAll(`div[data-seq-step="${startStep}"]`);
+        const intersectingPitches: number[] = [];
+        
+        notesInStep.forEach(el => {
+          const elRect = el.getBoundingClientRect();
+          const intersects = !(
+            elRect.right < marqueeRect.left ||
+            elRect.left > marqueeRect.right ||
+            elRect.bottom < marqueeRect.top ||
+            elRect.top > marqueeRect.bottom
+          );
+          if (intersects) {
+            const pitch = parseInt(el.getAttribute('data-seq-note') || '', 10);
+            if (!isNaN(pitch)) {
+              intersectingPitches.push(pitch);
+            }
+          }
+        });
+        
+        if (intersectingPitches.length > 0) {
+          updateActiveNotes(sequence[startStep].notes, true, false, intersectingPitches);
+        }
+      }
+    }
+  };
+
+  const handlePointerLeave = (e: React.PointerEvent) => {
+    if (dragTracker.current.isDragging) {
+      handlePointerUp(e);
+    }
+  };
+
   return (
     <div className="w-full max-w-[962px] bg-white dark:bg-[#111] p-3 rounded-lg shadow-xl border border-gray-200 dark:border-gray-800 flex flex-col gap-2 select-none relative">
       <div className="flex items-center gap-4 w-full">
@@ -348,7 +732,7 @@ export const StepSequencer: React.FC = () => {
           {/* Clear All Button */}
           <button
             onClick={() => {
-              setSequence(Array(8).fill({ notes: [], symbol: '' }));
+              setSequence(Array(12).fill({ notes: [], symbol: '' }));
               setSequenceKeyswitches({});
               setSelectedStep(null);
               selectedStepRef.current = null;
@@ -404,7 +788,16 @@ export const StepSequencer: React.FC = () => {
         </div>
 
         {/* Sequencer Grid */}
-        <div className="flex-1 flex border border-black/10 dark:border-white/10 rounded h-[140px] relative overflow-hidden bg-white dark:bg-[#0a0a0a]">
+        <div className={`flex-1 flex border border-black/10 dark:border-white/10 rounded ${isExpanded ? 'h-[320px]' : 'h-[140px]'} relative overflow-hidden bg-white dark:bg-[#0a0a0a] transition-all duration-300`}>
+          {/* Top-Left Expand Toggle Button */}
+          <button
+            onClick={() => setIsExpanded(prev => !prev)}
+            title={isExpanded ? "Collapse Timeline" : "Expand Timeline"}
+            className="absolute top-2 left-2 z-30 p-1.5 rounded-md border border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-[#111]/90 hover:border-[#aa3bff] hover:text-[#aa3bff] text-gray-400 dark:text-gray-500 transition-colors shadow-sm cursor-pointer"
+          >
+            {isExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+          </button>
+
           {isListeningForMap && (
             <div className="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-[2px] z-30 flex flex-col items-center justify-center text-center p-4">
               <span className="text-white text-xs font-semibold max-w-[80%] mb-2 leading-relaxed">
@@ -420,41 +813,58 @@ export const StepSequencer: React.FC = () => {
           )}
           
           {/* Clef & Brace Column */}
-          <div className="w-[45px] h-full flex flex-col relative flex-shrink-0 bg-white dark:bg-[#0a0a0a] border-r border-black/30 dark:border-gray-600/50">
+          <div className={`${isExpanded ? 'w-[75px]' : 'w-[45px]'} h-full flex flex-col relative flex-shrink-0 bg-white dark:bg-[#0a0a0a] z-20 shadow-[4px_0_8px_rgba(0,0,0,0.05)] border-r border-black/30 dark:border-gray-600/50 transition-all duration-300`}>
               
               {/* Top Spacer to align with chord pills */}
               <div className="h-10 border-b border-black/10 dark:border-white/5 bg-gray-50/50 dark:bg-[#1a1a1a]/50" />
 
               <div className="flex-1 relative w-full h-full">
                   {/* System Left Edge (Barline & Brace) */}
-                  <div className="absolute left-[12px] w-[1.5px] bg-black dark:bg-gray-600" style={{ top: `calc(50% - ${MINI_STAFF * 6}px)`, height: `${MINI_STAFF * 12}px` }}>
-                      <div className="absolute right-[calc(100%+1px)] font-['Bravura'] text-black dark:text-gray-300 leading-none" style={{ top: `${MINI_STAFF * 6}px`, fontSize: `${MINI_STAFF * 12}px`, lineHeight: '1' }}>{'\uE000'}</div>
+                  <div className="absolute w-[1.5px] bg-black dark:bg-gray-600" style={{ left: `${braceLeftPx}px`, top: `calc(50% - ${miniStaff * 6}px)`, height: `${miniStaff * 12}px` }}>
+                      <div className="absolute right-[calc(100%+1px)] font-['Bravura'] text-black dark:text-gray-300 leading-none" style={{ top: `${miniStaff * 6}px`, fontSize: `${miniStaff * 12}px`, lineHeight: '1' }}>{'\uE000'}</div>
                   </div>
                   
                   {/* Staff Lines */}
-                  <div className="absolute right-0 left-[12px]" style={{ top: `calc(50% - ${MINI_STAFF * 6}px)` }}>
-                    {[0, 1, 2, 3, 4].map(i => <div key={i} className="w-full border-t border-black dark:border-gray-600 absolute opacity-60" style={{ top: `${i * MINI_STAFF}px` }} />)}
+                  <div className="absolute opacity-60" style={{ left: `${lineStartPx}px`, right: 0, top: `calc(50% - ${miniStaff * 6}px)` }}>
+                      {[0, 1, 2, 3, 4].map(i => <div key={i} className="w-full border-t border-black dark:border-gray-600 absolute" style={{ top: `${i * miniStaff}px` }} />)}
                   </div>
-                  <div className="absolute right-0 left-[12px]" style={{ top: `calc(50% + ${MINI_STAFF * 2}px)` }}>
-                    {[0, 1, 2, 3, 4].map(i => <div key={i} className="w-full border-t border-black dark:border-gray-600 absolute opacity-60" style={{ top: `${i * MINI_STAFF}px` }} />)}
+                  
+                  {/* Bass Lines */}
+                  <div className="absolute opacity-60" style={{ left: `${lineStartPx}px`, right: 0, top: `calc(50% + ${miniStaff * 2}px)` }}>
+                      {[0, 1, 2, 3, 4].map(i => <div key={i} className="w-full border-t border-black dark:border-gray-600 absolute" style={{ top: `${i * miniStaff}px` }} />)}
                   </div>
                   
                   {/* Clefs */}
-                  <div className="absolute left-[18px] text-black dark:text-gray-300 leading-none" style={{ top: `calc(50% - ${MINI_STAFF * 5}px)`, fontSize: `${MINI_STAFF * 4}px`, fontFamily: 'Bravura' }}>{'\uE050'}</div>
-                  <div className="absolute left-[18px] text-black dark:text-gray-300 leading-none" style={{ top: `calc(50% + ${MINI_STAFF * 1}px)`, fontSize: `${MINI_STAFF * 4}px`, fontFamily: 'Bravura' }}>{'\uE062'}</div>
+                  <div className="absolute text-black dark:text-gray-300 leading-none" style={{ left: `${clefLeftPx}px`, top: `calc(50% - ${miniStaff * 5}px)`, fontSize: `${miniStaff * 4}px`, fontFamily: 'Bravura' }}>{'\uE050'}</div>
+                  <div className="absolute text-black dark:text-gray-300 leading-none" style={{ left: `${clefLeftPx}px`, top: `calc(50% + ${miniStaff * 1}px)`, fontSize: `${miniStaff * 4}px`, fontFamily: 'Bravura' }}>{'\uE062'}</div>
               </div>
           </div>
 
-          {/* 8 Bars Sequence */}
-          {(sequence as any[]).map((bar: any, idx: number) => {
-            const renderedNotes = computeMiniLayout(bar.notes, MINI_STAFF);
-            
-            return (
-            <div key={idx} className="flex-1 flex flex-col relative border-r border-black/30 dark:border-gray-600/50 last:border-0">
+          {/* 12 Bars Sequence Scroll Container */}
+          <div 
+            ref={seqCanvasRef} 
+            className="flex-1 flex overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 relative"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerLeave}
+            onDoubleClick={() => {
+              if (isExpanded) setIsWriteMode(prev => !prev);
+            }}
+          >
+            <div ref={marqueeRef} className="absolute border border-blue-500 bg-blue-500/20 z-50 pointer-events-none hidden" style={{ left: 0, top: 0, width: 0, height: 0 }} />
+            <div id="timeline-ghost-note" className="absolute hidden pointer-events-none opacity-60 z-50 transition-none" style={{ left: '50%', transform: 'translate(-50%, -50%)' }}>
+              <div id="timeline-ghost-accidental" className="absolute" style={{ left: `calc(-1.5 * ${miniStaff}px)`, top: '50%', transform: 'translateY(-50%)', fontFamily: "'Bravura', sans-serif", fontSize: `${miniStaff * 3}px`, color: '#aa3bff' }}></div>
+              <div id="timeline-ghost-notehead" style={{ fontFamily: "'Bravura', sans-serif", fontSize: `${miniStaff * 4.2}px`, color: '#aa3bff' }}>{SMuFL.noteheadBlack}</div>
+            </div>
+            {(sequence as any[]).map((bar: any, idx: number) => {
+              const renderedNotes = computeMiniLayout(bar.notes, miniStaff);
+              
+              return (
+              <div key={idx} id={`seq-bar-${idx}`} data-step-index={idx} className="flex-1 flex flex-col relative border-r border-black/30 dark:border-gray-600/50 last:border-0 min-w-[100px] flex-shrink-0">
               
               {/* Chord Symbol Pill (Top) */}
               <div 
-                data-step-index={idx}
                 onPointerDown={(e) => {
                   const hasNotes = bar.notes && bar.notes.length > 0;
                   if (e.altKey && hasNotes) {
@@ -476,8 +886,9 @@ export const StepSequencer: React.FC = () => {
                   if (bar.notes.length > 0) {
                     try { Tone.context.resume(); } catch(err){}
                     try { audioEngine.releaseAll(); } catch(err){}
-                    bar.notes.forEach((n: any) => {
-                      const noteStr = Tone.Frequency(n.note, "midi").toNote();
+                    const noteStrs = bar.notes.map((n: any) => Tone.Frequency(typeof n === 'object' ? n.note : n, "midi").toNote());
+                    activeChordNotesRef.current = noteStrs;
+                    noteStrs.forEach((noteStr: string) => {
                       try { audioEngine.noteOn(noteStr, uiVelocity / 127); } catch(err){}
                     });
                   }
@@ -523,15 +934,8 @@ export const StepSequencer: React.FC = () => {
 
                       // Trigger short play preview on successful drop
                       if (copiedNotes.length > 0) {
-                        try { Tone.context.resume(); } catch(err){}
-                        try { audioEngine.releaseAll(); } catch(err){}
-                        copiedNotes.forEach((n: any) => {
-                          const noteStr = Tone.Frequency(n.note, "midi").toNote();
-                          try { audioEngine.noteOn(noteStr, uiVelocity / 127); } catch(err){}
-                          setTimeout(() => {
-                            try { audioEngine.releaseNote(noteStr); } catch(err){}
-                          }, 400);
-                        });
+                        const copiedStrs = copiedNotes.map((n: any) => Tone.Frequency(typeof n === 'object' ? n.note : n, "midi").toNote());
+                        playPreviewNotes(copiedStrs);
                       }
                     }
                     setDraggingSource(null);
@@ -541,14 +945,20 @@ export const StepSequencer: React.FC = () => {
                   }
 
                   // Normal release
-                  if (bar.notes.length > 0) {
-                    bar.notes.forEach((n: any) => {
-                      const noteStr = Tone.Frequency(n.note, "midi").toNote();
+                  if (activeChordNotesRef.current.length > 0) {
+                    activeChordNotesRef.current.forEach((noteStr: string) => {
                       try { audioEngine.releaseNote(noteStr); } catch(err){}
                     });
+                    activeChordNotesRef.current = [];
                   }
                 }}
                 onPointerCancel={(e) => {
+                  if (activeChordNotesRef.current.length > 0) {
+                    activeChordNotesRef.current.forEach((noteStr: string) => {
+                      try { audioEngine.releaseNote(noteStr); } catch(err){}
+                    });
+                    activeChordNotesRef.current = [];
+                  }
                   if (draggingSource !== null) {
                     e.currentTarget.releasePointerCapture(e.pointerId);
                     setDraggingSource(null);
@@ -557,13 +967,13 @@ export const StepSequencer: React.FC = () => {
                   }
                 }}
                 onPointerLeave={() => {
-                  if (draggingSource !== null) return;
-                  if (bar.notes.length > 0) {
-                    bar.notes.forEach((n: any) => {
-                      const noteStr = Tone.Frequency(n.note, "midi").toNote();
+                  if (activeChordNotesRef.current.length > 0) {
+                    activeChordNotesRef.current.forEach((noteStr: string) => {
                       try { audioEngine.releaseNote(noteStr); } catch(err){}
                     });
+                    activeChordNotesRef.current = [];
                   }
+                  if (draggingSource !== null) return;
                 }}
                 className="h-10 flex items-center justify-center relative bg-gray-50/50 dark:bg-[#1a1a1a]/50 border-b border-black/10 dark:border-white/5 z-20 select-none group"
                 style={{
@@ -610,41 +1020,160 @@ export const StepSequencer: React.FC = () => {
               )}
 
               {/* Mini Grand Staff System */}
-              <div className="flex-1 relative w-full h-full">
+              <div 
+                data-staff-area={idx}
+                className="flex-1 relative w-full h-full staff-canvas-area cursor-crosshair"
+                onPointerMove={(e) => {
+                  if (!isWriteMode || !isExpanded) return;
+                  const ghost = document.getElementById('timeline-ghost-note');
+                  if (ghost && ghost.parentElement !== e.currentTarget) {
+                    e.currentTarget.appendChild(ghost);
+                  }
+                  snapTimelineGhostNote(
+                    e.clientY,
+                    e.currentTarget,
+                    miniStaff,
+                    keySignatureRef.current,
+                    accidentalOverrideRef.current,
+                    lutRef.current
+                  );
+                }}
+                onPointerLeave={() => {
+                  const ghost = document.getElementById('timeline-ghost-note');
+                  if (ghost) ghost.classList.add('hidden');
+                }}
+                onPointerDown={(e) => {
+                  if (!isWriteMode || !isExpanded) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+
+                  commitSeqState();
+
+                  const ghost = document.getElementById('timeline-ghost-note');
+                  let step = parseInt((ghost as any)?.dataset.step || '0', 10);
+                  let targetMidiNote = parseInt((ghost as any)?.dataset.midiNote || '60', 10);
+                  let targetAccidental = (ghost as any)?.dataset.accidental === 'null' ? null : (ghost as any)?.dataset.accidental;
+
+                  if (isNaN(targetMidiNote) || !ghost || ghost.classList.contains('hidden')) {
+                    const snap = snapTimelineGhostNote(
+                      e.clientY,
+                      e.currentTarget,
+                      miniStaff,
+                      keySignatureRef.current,
+                      accidentalOverrideRef.current,
+                      lutRef.current
+                    );
+                    step = snap.stepOffset;
+                    targetMidiNote = snap.midiNote;
+                    targetAccidental = snap.calculatedAcc;
+                  }
+
+                  const isTreble = step >= -2;
+                  const newNoteObj = {
+                    id: generateId(),
+                    note: targetMidiNote,
+                    stepOffset: step,
+                    isTreble,
+                    accidental: targetAccidental,
+                    forceAccidentalDisplay: !!targetAccidental
+                  };
+
+                  const existingBar = sequenceRef.current[idx] || { notes: [], symbol: '' };
+                  const updatedNotes = [...(existingBar.notes || []), newNoteObj];
+                  const updatedPitches = updatedNotes.map((n: any) => typeof n === 'object' ? n.note : n);
+                  const symbol = getChordSymbol(updatedPitches, keySignatureRef.current, lutRef.current);
+
+                  setSelectedStep(idx);
+                  selectedStepRef.current = idx;
+
+                  setSequence((prev: any[]) => {
+                    const next = [...prev];
+                    next[idx] = { notes: updatedNotes, symbol };
+                    return next;
+                  });
+
+                  updateActiveNotes(updatedNotes, true, false, [targetMidiNote]);
+                  playPreviewNotes([Tone.Frequency(targetMidiNote, "midi").toNote()]);
+                }}
+              >
                 <span className="absolute top-1 left-2 text-[10px] font-bold text-black/30 dark:text-white/30 z-10 select-none">
                   {idx + 1}
                 </span>
                 
                 {/* Treble Lines */}
-                <div className="absolute w-full" style={{ top: `calc(50% - ${MINI_STAFF * 6}px)` }}>
-                  {[0, 1, 2, 3, 4].map(i => <div key={i} className="w-full border-t border-black dark:border-gray-600 absolute opacity-60" style={{ top: `${i * MINI_STAFF}px` }} />)}
+                <div className="absolute w-full" style={{ top: `calc(50% - ${miniStaff * 6}px)` }}>
+                  {[0, 1, 2, 3, 4].map(i => <div key={i} className="w-full border-t border-black dark:border-gray-600 absolute opacity-60" style={{ top: `${i * miniStaff}px` }} />)}
                 </div>
                 
                 {/* Bass Lines */}
-                <div className="absolute w-full" style={{ top: `calc(50% + ${MINI_STAFF * 2}px)` }}>
-                  {[0, 1, 2, 3, 4].map(i => <div key={i} className="w-full border-t border-black dark:border-gray-600 absolute opacity-60" style={{ top: `${i * MINI_STAFF}px` }} />)}
+                <div className="absolute w-full" style={{ top: `calc(50% + ${miniStaff * 2}px)` }}>
+                  {[0, 1, 2, 3, 4].map(i => <div key={i} className="w-full border-t border-black dark:border-gray-600 absolute opacity-60" style={{ top: `${i * miniStaff}px` }} />)}
                 </div>
+
+                {/* Ottava Labels */}
+                {renderedNotes.ottavaLabels && renderedNotes.ottavaLabels.map((label: any, lIdx: number) => (
+                  <div 
+                    key={`ottava-label-${lIdx}`}
+                    className="ottava-label absolute pointer-events-none whitespace-nowrap left-1/2 -translate-x-1/2 flex items-baseline justify-center z-30"
+                    style={{
+                      top: `calc(50% - ${label.y}px + ${label.offset}px)`,
+                    }}
+                  >
+                    <span 
+                      className="text-black dark:text-gray-300"
+                      style={{ 
+                        fontFamily: "'Bravura', sans-serif", 
+                        fontSize: `${miniStaff * 3}px`,
+                        lineHeight: 1
+                      }}
+                    >
+                      {label.data.glyph}
+                    </span>
+                    <span 
+                      className="font-serif italic text-black dark:text-gray-300 font-bold"
+                      style={{ 
+                        fontSize: `${miniStaff * 1.5}px`,
+                        marginLeft: '2px'
+                      }}
+                    >
+                      {label.data.suffix}
+                    </span>
+                  </div>
+                ))}
 
                 {/* Notes */}
                 {renderedNotes.map((n, i) => {
-                  const isSelected = selectedStep === idx;
-                  const textCol = isSelected ? 'text-[#aa3bff]' : 'text-black dark:text-gray-300';
-                  const bgCol = isSelected ? 'bg-[#aa3bff]' : 'bg-black dark:bg-gray-400';
+                  const isStepSelected = selectedStep === idx;
+                  const isNoteSelected = isStepSelected && selectedNotes?.includes(n.note);
+
+                  const textCol = isNoteSelected ? 'text-[#aa3bff]' : 'text-black dark:text-gray-300';
+                  const bgCol = isNoteSelected ? 'bg-[#aa3bff]' : 'bg-black dark:bg-gray-400';
+                  const textShadow = isNoteSelected ? 'drop-shadow(0 0 4px rgba(170, 59, 255, 0.4))' : 'none';
 
                   return (
-                    <div key={i} className="absolute z-10" style={{ 
-                      left: n.xOffset !== undefined ? `calc(50% + ${n.xOffset}px)` : '50%', 
-                      top: `calc(50% - ${n.y}px)`, 
-                      transform: 'translate(-50%, -50%)' 
-                    }}>
-                      <span className={`transition-colors ${textCol}`} style={{ fontFamily: 'Bravura', fontSize: `${MINI_STAFF * 4.2}px` }}>{SMuFL.noteheadWhole}</span>
+                    <div 
+                      key={i} 
+                      className="absolute z-10 pointer-events-none" 
+                      style={{ 
+                        left: n.xOffset !== undefined ? `calc(50% + ${n.xOffset}px)` : '50%', 
+                        top: `calc(50% - ${n.y}px)`, 
+                        transform: 'translate(-50%, -50%)' 
+                      }}
+                    >
+                      <span 
+                        className={`transition-colors ${textCol}`} 
+                        style={{ fontFamily: 'Bravura', fontSize: `${miniStaff * 4.2}px`, filter: textShadow }}
+                      >
+                        {SMuFL.noteheadWhole}
+                      </span>
                       {(n.accidental || n.forceAccidentalDisplay) && (
                         <span className={`absolute transition-colors ${textCol}`} style={{ 
-                          left: n.accidentalLeft || `calc(-1.5 * ${MINI_STAFF}px)`, 
+                          left: n.accidentalLeft || `calc(-1.5 * ${miniStaff}px)`, 
                           top: '50%', 
                           transform: 'translateY(-50%)', 
                           fontFamily: 'Bravura', 
-                          fontSize: `${MINI_STAFF * 3}px`
+                          fontSize: `${miniStaff * 3}px`,
+                          filter: textShadow
                         }}>
                           {n.accidental || SMuFL.accidentalNatural}
                         </span>
@@ -654,17 +1183,17 @@ export const StepSequencer: React.FC = () => {
                       {(() => {
                         const lines = [];
                         const renderLedgerLine = (lineStep: number) => {
-                          const yOffset = (n.finalStep - lineStep) * (MINI_STAFF / 2);
-                          return (
-                            <div 
-                              key={`ledger-${n.note}-${lineStep}`}
-                              className={`absolute left-1/2 -translate-x-1/2 h-[1px] z-[-1] transition-colors ${bgCol}`}
-                              style={{
-                                width: `${MINI_STAFF * 2.5}px`,
-                                top: `calc(50% + ${yOffset}px)`
-                              }}
-                            />
-                          );
+                           const yOffset = (n.finalStep - lineStep) * (miniStaff / 2);
+                           return (
+                             <div 
+                               key={`ledger-${n.note}-${lineStep}`}
+                               className={`absolute left-1/2 -translate-x-1/2 h-[1px] z-[-1] transition-colors ${bgCol}`}
+                               style={{
+                                 width: `${miniStaff * 2.5}px`,
+                                 top: `calc(50% + ${yOffset}px)`
+                               }}
+                             />
+                           );
                         };
 
                         if (n.isTreble) {
@@ -682,6 +1211,34 @@ export const StepSequencer: React.FC = () => {
                         }
                         return lines;
                       })()}
+
+                      {/* ISOLATED HITBOX */}
+                      <div 
+                        data-seq-note={n.note}
+                        data-seq-step={idx}
+                        className={`absolute top-1/2 left-1/2 w-6 h-6 -translate-x-1/2 -translate-y-1/2 z-50 rounded-full ${isExpanded && !isWriteMode ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none'}`}
+                        onPointerDown={(e) => {
+                          if (!isExpanded) return;
+                          e.preventDefault();
+                          e.stopPropagation(); // CRITICAL: Prevents the chord pill from stealing the click
+                          
+                          setSelectedStep(idx);
+                          if (selectedStepRef) selectedStepRef.current = idx;
+                          
+                          let newSelection = [n.note];
+                          if (e.metaKey || e.ctrlKey || e.shiftKey) {
+                             const isSelected = selectedNotes?.includes(n.note);
+                             newSelection = isSelected 
+                                 ? (selectedNotes || []).filter(p => p !== n.note) 
+                                 : [...(selectedNotes || []), n.note];
+                          }
+                          
+                          updateActiveNotes(bar.notes, true, false, newSelection);
+                          
+                          const noteStr = Tone.Frequency(n.note, "midi").toNote();
+                          playPreviewNotes([noteStr]);
+                        }}
+                      />
                     </div>
                   );
                 })}
@@ -689,6 +1246,7 @@ export const StepSequencer: React.FC = () => {
 
             </div>
           )})}
+          </div>
         </div>
       </div>
 

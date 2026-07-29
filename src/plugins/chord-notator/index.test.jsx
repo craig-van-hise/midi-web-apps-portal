@@ -65,4 +65,37 @@ describe('ChordNotator Hardware Event Bus Routing', () => {
     expect(mockDispatchPhysicalMidi).toHaveBeenCalledWith(new Uint8Array([144, 60, 100]));
     expect(mockDispatchVirtualMidi).not.toHaveBeenCalled();
   });
+
+  it('PRP 138 Phase 4 Test Case 2: Given isWriteMode === true, When rendering the workspace, Assert the Write Mode accidental toolbar is rendered outside the StepSequencer container', () => {
+    vi.mocked(useMidi).mockReturnValue({
+      dispatchVirtualMidi: vi.fn(),
+      dispatchPhysicalMidi: vi.fn(),
+      handleMidiPanic: vi.fn(),
+      sequence: Array(12).fill({ notes: [], symbol: '' }),
+      setSequence: vi.fn(),
+      sequenceKeyswitches: {},
+      mapSequenceToKeys: vi.fn(),
+      isWriteMode: true,
+      setIsWriteMode: vi.fn(),
+      accidentalOverride: null,
+      setAccidentalOverride: vi.fn(),
+    });
+
+    const { container } = render(
+      <ChordNotator
+        midiBus={new EventTarget()}
+        onMidiOut={vi.fn()}
+        isBypassed={false}
+        showInfo={false}
+        showSettings={false}
+        triggerPanic={false}
+      />
+    );
+
+    const accidentalToolbox = container.querySelector('[title="Accidental Toolbox"]');
+    expect(accidentalToolbox).toBeInTheDocument();
+    
+    // Accidental toolbox is rendered outside StepSequencer
+    expect(accidentalToolbox.closest('.border-black\\/10')).toBeNull();
+  });
 });
