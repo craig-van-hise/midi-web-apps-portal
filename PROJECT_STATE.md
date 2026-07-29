@@ -2,7 +2,12 @@
 
 ## 1. Architecture & Directory Tree
 ```text
-midi-web-apps-portal/
+midi-web-apps-portal
+├── # Prompts/
+│   ├── # 143.md
+│   ├── # 144.md
+│   ├── # Regenerate PC_LUT.md
+│   └── xOlder/
 ├── public/                     # Global assets, PCS_LUT.dat database, and fonts
 │   ├── fonts/
 │   │   └── Bravura.woff2
@@ -11,9 +16,6 @@ midi-web-apps-portal/
 │   └── icons.svg
 ├── src/
 │   ├── assets/
-│   │   ├── hero.png
-│   │   ├── react.svg
-│   │   └── vite.svg
 │   ├── config/
 │   │   ├── appRegistry.js
 │   │   ├── appRegistry.test.js
@@ -30,8 +32,6 @@ midi-web-apps-portal/
 │   │   │   ├── usePersistentState.js
 │   │   │   └── utils.js
 │   │   ├── utils/
-│   │   │   ├── latencyProfiler.js
-│   │   │   └── latencyProfiler.test.js
 │   │   ├── App.css
 │   │   ├── App.jsx
 │   │   └── App.test.jsx
@@ -40,7 +40,7 @@ midi-web-apps-portal/
 │   │   ├── DummyPlugin.test.jsx
 │   │   ├── chord-notator/     # Chord Notator & Sequencer Suite
 │   │   │   ├── audio/
-│   │   │   ├── components/    # Keyboard, NotationCanvas, StepSequencer, toolbar/
+│   │   │   ├── components/    # Keyboard, NotationCanvas, StepSequencer, Toolbar, Timeline
 │   │   │   ├── hooks/
 │   │   │   ├── index.jsx
 │   │   │   ├── index.test.jsx
@@ -49,7 +49,6 @@ midi-web-apps-portal/
 │   │   │   └── utils/         # Chord spelling & notation math utilities
 │   │   ├── dynamics/          # Velocity compressor/expander
 │   │   ├── midi-tonnetz/      # Topological grid for visualizing harmonic relationships
-│   │   ├── midi-transposer/   # Two-zone keyboard transposer & output filter
 │   │   ├── monitor/           # MIDI log/event visualizer
 │   │   └── pitch-class-matrix/ # Scale and root quantizer
 │   ├── index.css
@@ -76,7 +75,7 @@ midi-web-apps-portal/
 - **Audio Engine**: Low-latency `Tone.js` + `smplr` architecture running on the main thread (`Tone.context.lookAhead = 0.002`). Executes MIDI triggers synchronously (bypassing React batching) and typecasts raw MIDI notes to Scientific Pitch Notation strings (`"C4"`) using `Tone.Frequency` before trigger. Reverb is configured as a parallel send/return bus using algorithmic `Tone.Freeverb` (Schroeder reverberator) to avoid FFT convolution delays.
 - **Tracking/MIDI Engine**: Global Web MIDI API manager routing hardware input directly down to active plugins using a ref-based `EventTarget` Event Bus, avoiding React batching issues and stuck notes. MIDI permissions status pill is integrated directly in the `TitleBar` to prevent visual layout overlaps.
 - **Visualizer & Processing Plugins**:
-  - **Chord Notator**: Renders sheet music notation from live MIDI inputs in real-time. Features an 8-bar chord recording timeline/step sequencer, a multi-row boundary tracker keyboard to prevent text overlap in dense chords, and option+click chord copying. Includes a transformation engine with real-time UI/Audio integration, Radix-based accessible tooltips, and physical/virtual keyswitches (drag-and-drop editable) for rapid trigger control.
+  - **Chord Notator**: Renders sheet music notation from live MIDI inputs in real-time. Features an 8-bar chord recording timeline/step sequencer, interactive arrow key step traversal, synchronous pointer note dropping, deep-cloned timeline history undo/redo, a multi-row boundary tracker keyboard, and option+click chord copying. Includes a transformation engine with real-time UI/Audio integration, Radix-based accessible tooltips, and physical/virtual keyswitches for rapid trigger control.
   - **MIDI Tonnetz**: Euler-Riemann topological grid for visualizing harmonic relationships.
   - **Pitch Class Matrix**: Maps and quantizes incoming MIDI notes to specific roots and scales.
   - **MIDI Monitor**: Logs live MIDI status messages, note numbers, velocities, and CC changes.
@@ -85,4 +84,5 @@ midi-web-apps-portal/
 - **UI State Logic**: Frame-rate limited state sync (~30fps / 32ms) separating instant synchronous audio triggers from asynchronous rendering cycles. Z-index layering is strictly audited to resolve popovers, settings overlays, and interactive canvas components.
 
 ## 4. Recent Evolution
-Recently, we completed a major overhaul of the Chord Notator component, adding an 8-bar chord recording timeline/step sequencer, a multi-row boundary tracker keyboard to prevent text overlap in dense chords, auto-zoom on the notation canvas, and option+click chord copying. We also added drag-and-drop customizable keyswitch binds for chord transformations, fixed z-index layering bugs in settings popups, and resolved key transpose enharmonics bugs.
+We recently overhauled the Chord Notator timeline, resolving notation issues, fixing step selection traversal and note drop race conditions with synchronous pointer calculations, and implementing strict deep-cloning for timeline history undo/redo. Additionally, key switches, chord persistence, chord copying, and transpose hang fixes were integrated into the chord recording timeline.
+

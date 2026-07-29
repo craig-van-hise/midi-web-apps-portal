@@ -278,7 +278,7 @@ export interface StepSequencerProps {
 export const StepSequencer: React.FC<StepSequencerProps> = ({ initialIsExpanded = false }) => {
   const { keySignature, lut, updateActiveNotes, uiVelocity, sequence, setSequence, mapSequenceToKeys, isListeningForMap, setIsListeningForMap, sequenceKeyswitches, setSequenceKeyswitches, selectedNotes, isWriteMode = false, setIsWriteMode = () => {}, accidentalOverride = null, setAccidentalOverride = () => {} } = useMidi() as any;
   const [isExpanded, setIsExpanded] = useState(initialIsExpanded);
-  const miniStaff = isExpanded ? 11 : 5;
+  const miniStaff = isExpanded ? 12 : 5;
   const braceLeftPx = isExpanded ? 24 : 12;
   const lineStartPx = isExpanded ? 24 : 12;
   const clefLeftPx = isExpanded ? 34 : 18;
@@ -574,7 +574,11 @@ export const StepSequencer: React.FC<StepSequencerProps> = ({ initialIsExpanded 
     if (e.button !== 0) return;
     if (!isExpanded) return;
     const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('[data-seq-note]')) return;
+    if (
+      target.closest('button') || 
+      target.closest('[data-seq-note]') || 
+      target.closest('[data-chord-pill]')
+    ) return;
 
     if (isWriteModeRef.current) {
       const clickX = e.clientX;
@@ -865,6 +869,7 @@ export const StepSequencer: React.FC<StepSequencerProps> = ({ initialIsExpanded 
               
               {/* Chord Symbol Pill (Top) */}
               <div 
+                data-chord-pill="true"
                 onPointerDown={(e) => {
                   const hasNotes = bar.notes && bar.notes.length > 0;
                   if (e.altKey && hasNotes) {
@@ -877,6 +882,7 @@ export const StepSequencer: React.FC<StepSequencerProps> = ({ initialIsExpanded 
 
                   // Normal selection click
                   e.preventDefault();
+                  e.currentTarget.setPointerCapture(e.pointerId);
                   setSelectedStep(idx);
                   selectedStepRef.current = idx;
                   
@@ -945,6 +951,7 @@ export const StepSequencer: React.FC<StepSequencerProps> = ({ initialIsExpanded 
                   }
 
                   // Normal release
+                  try { e.currentTarget.releasePointerCapture(e.pointerId); } catch(err) {}
                   if (activeChordNotesRef.current.length > 0) {
                     activeChordNotesRef.current.forEach((noteStr: string) => {
                       try { audioEngine.releaseNote(noteStr); } catch(err){}
@@ -953,6 +960,7 @@ export const StepSequencer: React.FC<StepSequencerProps> = ({ initialIsExpanded 
                   }
                 }}
                 onPointerCancel={(e) => {
+                  try { e.currentTarget.releasePointerCapture(e.pointerId); } catch(err) {}
                   if (activeChordNotesRef.current.length > 0) {
                     activeChordNotesRef.current.forEach((noteStr: string) => {
                       try { audioEngine.releaseNote(noteStr); } catch(err){}
@@ -960,7 +968,6 @@ export const StepSequencer: React.FC<StepSequencerProps> = ({ initialIsExpanded 
                     activeChordNotesRef.current = [];
                   }
                   if (draggingSource !== null) {
-                    e.currentTarget.releasePointerCapture(e.pointerId);
                     setDraggingSource(null);
                     setDragOverStep(null);
                     setDragCoords(null);
@@ -1022,7 +1029,7 @@ export const StepSequencer: React.FC<StepSequencerProps> = ({ initialIsExpanded 
               {/* Mini Grand Staff System */}
               <div 
                 data-staff-area={idx}
-                className="flex-1 relative w-full h-full staff-canvas-area cursor-crosshair"
+                className="flex-1 relative w-full h-full staff-canvas-area cursor-default"
                 onPointerMove={(e) => {
                   if (!isWriteMode || !isExpanded) return;
                   const ghost = document.getElementById('timeline-ghost-note');
@@ -1187,7 +1194,7 @@ export const StepSequencer: React.FC<StepSequencerProps> = ({ initialIsExpanded 
                            return (
                              <div 
                                key={`ledger-${n.note}-${lineStep}`}
-                               className={`absolute left-1/2 -translate-x-1/2 h-[1px] z-[-1] transition-colors ${bgCol}`}
+                               className={`absolute left-1/2 -translate-x-1/2 ${isExpanded ? 'h-[1.5px]' : 'h-[1px]'} z-[-1] transition-colors ${bgCol}`}
                                style={{
                                  width: `${miniStaff * 2.5}px`,
                                  top: `calc(50% + ${yOffset}px)`

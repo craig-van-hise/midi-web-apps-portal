@@ -30,6 +30,7 @@ Currently, the portal hosts the following integrated plugins:
 
 ```text
 midi-web-apps-portal/
+├── # Prompts/              # Project requirements & PRP prompt specs
 ├── public/                 # Global assets, PCS_LUT.dat database, and fonts
 ├── src/
 │   ├── config/             # App Registry and configurations
@@ -38,7 +39,7 @@ midi-web-apps-portal/
 │   │   ├── rompler/        # Tone.js + smplr Audio Engine & UI Drawer
 │   │   │   ├── engine.js   # Audio engine context, voice mapping & routing
 │   │   │   └── ...
-│   │   ├── utils/          # Host utilities (latencyProfiler.js)
+│   │   ├── utils/          # Host utilities
 │   │   └── App.jsx         # Main Host Layout & State Controller
 │   └── plugins/            # THE HEADLESS MODULES
 │       ├── chord-notator/  # Renders sheet music notation & sequencer

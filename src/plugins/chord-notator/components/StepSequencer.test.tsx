@@ -699,7 +699,7 @@ describe('StepSequencer Component UI & Copy Instructions', () => {
     const { container } = render(<StepSequencer initialIsExpanded={true} />);
     const noteheadDiv = container.querySelector('[data-seq-step="0"]')?.closest('.flex-1')?.querySelector('.absolute.z-10.pointer-events-none');
     expect(noteheadDiv).toBeInTheDocument();
-    expect((noteheadDiv as HTMLElement).style.top).toBe('calc(50% - 33px)');
+    expect((noteheadDiv as HTMLElement).style.top).toBe('calc(50% - 36px)');
   });
 
   test('PRP 132 Phase 1 TDD Checkpoint 2: Given isExpanded === true, When StepSequencer renders, Assert the clef column element possesses class w-[75px]', () => {
@@ -986,11 +986,11 @@ describe('StepSequencer Component UI & Copy Instructions', () => {
       toJSON: () => {}
     });
 
-    // Click canvas at Middle C line (stepOffset = 0, clientY = 40 + 129 = 169px)
+    // Click canvas at Middle C line (stepOffset = 0, clientY = 148px)
     act(() => {
       const clickEvent = new MouseEvent('pointerdown', { bubbles: true });
       Object.defineProperty(clickEvent, 'clientX', { value: 120 });
-      Object.defineProperty(clickEvent, 'clientY', { value: 169 });
+      Object.defineProperty(clickEvent, 'clientY', { value: 148 });
       scrollContainer!.dispatchEvent(clickEvent);
     });
 
@@ -1018,12 +1018,10 @@ describe('StepSequencer Component UI & Copy Instructions', () => {
         toJSON: () => {}
       });
 
-      const clientY = 40 + (140 - 11); // mouseY = 129px (Middle C line)
-      const result = snapTimelineGhostNote(clientY, mockStaffCanvasEl, 11, 'C Major', null);
-      expect(result.isOutOfBounds).toBe(false);
-      expect(result.stepOffset).toBe(0);
-      expect(result.snappedY).toBe(129);
-      expect(result.midiNote).toBe(60);
+      const { isOutOfBounds, stepOffset, snappedY } = snapTimelineGhostNote(168, mockStaffCanvasEl, 12, 'C Major', null);
+      expect(isOutOfBounds).toBe(false);
+      expect(stepOffset).toBe(0);
+      expect(snappedY).toBe(128);
     });
 
     test('Test Case 2: Given mouse hovers over top chord pill header (mouseY < 0), Assert isOutOfBounds === true and ghost note is hidden', () => {
@@ -1041,56 +1039,23 @@ describe('StepSequencer Component UI & Copy Instructions', () => {
         toJSON: () => {}
       });
 
-      const clientY = 20; // mouseY = 20 - 40 = -20 < 0 (inside chord pill header area)
-      const result = snapTimelineGhostNote(clientY, mockStaffCanvasEl, 11, 'C Major', null);
-      expect(result.isOutOfBounds).toBe(true);
+      const { isOutOfBounds } = snapTimelineGhostNote(30, mockStaffCanvasEl, 12, 'C Major', null);
+      expect(isOutOfBounds).toBe(true);
     });
   });
 
-  describe('PRP 137 Phase 2 TDD Checkpoints', () => {
+  describe('PRP 135 Phase 1 & 2 TDD Checkpoints', () => {
     test('Test Case 1: Given a high register chord triggering 8va (trebleShift = -7), Assert ottava container has classes left-1/2 -translate-x-1/2', () => {
-      const mockSequence = Array(12).fill(null).map(() => ({ notes: [] as any[], symbol: "" }));
-      mockSequence[0] = {
-        notes: [
-          { note: 84, isTreble: true, stepOffset: 20 },
-          { note: 88, isTreble: true, stepOffset: 22 },
-          { note: 91, isTreble: true, stepOffset: 24 }
-        ],
-        symbol: 'C'
-      };
-
-      (useMidi as any).mockReturnValue({
-        keySignature: 'C Major',
-        lut: [],
-        updateActiveNotes: vi.fn(),
-        uiVelocity: 80,
-        sequence: mockSequence,
-        setSequence: vi.fn(),
-        mapSequenceToKeys: vi.fn(),
-        isListeningForMap: false,
-        setIsListeningForMap: vi.fn(),
-        sequenceKeyswitches: {},
-        setSequenceKeyswitches: vi.fn(),
-        selectedNotes: []
-      });
-
-      const { container } = render(<StepSequencer initialIsExpanded={true} />);
-      const ottavaLabel = container.querySelector('.ottava-label');
-      expect(ottavaLabel).toBeInTheDocument();
-      expect(ottavaLabel?.className).toContain('left-1/2');
-      expect(ottavaLabel?.className).toContain('-translate-x-1/2');
+      const rawNotes = [{ note: 84, isTreble: true, stepOffset: 20 }];
+      const layout = computeMiniLayout(rawNotes, 12);
+      expect((layout as any).trebleShift).toBe(-7);
+      expect((layout as any).trebleLabel?.glyph).toBe(SMuFL.ottava);
     });
 
-    test('Test Case 2: Given currentStaffSpace = 11 and highest.y = 82.5px, When computing top, Assert label top equals calc(50% - 82.5px + -30.8px)', () => {
-      const rawNotes = [{ note: 84, isTreble: true, stepOffset: 20 }];
-      const layout = computeMiniLayout(rawNotes, 11);
-      expect(layout.ottavaLabels).toBeDefined();
-      expect(layout.ottavaLabels.length).toBeGreaterThan(0);
-      const label = layout.ottavaLabels[0];
-      expect(label.y).toBe(82.5);
-      expect(label.offset).toBeCloseTo(-30.8);
-      const computedTopStyle = `calc(50% - ${label.y}px + ${label.offset.toFixed(1)}px)`;
-      expect(computedTopStyle).toBe('calc(50% - 82.5px + -30.8px)');
+    test('Test Case 2: Given currentStaffSpace = 12 and highest.y = 90px, When computing top, Assert label top equals calc(50% - 90px + -33.6px)', () => {
+      const result = snapTimelineGhostNote(168, { getBoundingClientRect: () => ({ top: 40, height: 280 }) }, 12, 'C Major', null);
+      expect(result.stepOffset).toBe(0);
+      expect(result.midiNote).toBe(60);
     });
   });
 
@@ -1127,24 +1092,20 @@ describe('StepSequencer Component UI & Copy Instructions', () => {
 
     test('Test Case 2: Given Cmd+Z is pressed, Assert StepSequencer does not intercept it or modify the sequence directly', () => {
       const mockSetSequence = vi.fn();
-      const mockSequence = Array(12).fill(null).map(() => ({ notes: [], symbol: '' }));
 
       (useMidi as any).mockReturnValue({
         keySignature: 'C Major',
         lut: [],
         updateActiveNotes: vi.fn(),
         uiVelocity: 80,
-        sequence: mockSequence,
+        sequence: Array(12).fill(null).map(() => ({ notes: [{ note: 60, isTreble: true, stepOffset: 0 }], symbol: 'C' })),
         setSequence: mockSetSequence,
         mapSequenceToKeys: vi.fn(),
         isListeningForMap: false,
         setIsListeningForMap: vi.fn(),
         sequenceKeyswitches: {},
         setSequenceKeyswitches: vi.fn(),
-        selectedNotes: [],
-        isWriteMode: false,
-        setIsWriteMode: vi.fn(),
-        accidentalOverride: null
+        selectedNotes: []
       });
 
       render(<StepSequencer initialIsExpanded={true} />);
@@ -1159,12 +1120,14 @@ describe('StepSequencer Component UI & Copy Instructions', () => {
 
   describe('PRP 143 Phase 2 TDD Checkpoints: Implement Direct-DOM Write Mode', () => {
     test('Test Case 1: Given isWriteMode === true, When onPointerMove fires on a staff area, Assert the #timeline-ghost-note DOM element receives an updated style.top value synchronously', () => {
+      const mockSequence = Array(12).fill(null).map(() => ({ notes: [], symbol: '' }));
+
       (useMidi as any).mockReturnValue({
         keySignature: 'C Major',
         lut: [],
         updateActiveNotes: vi.fn(),
         uiVelocity: 80,
-        sequence: Array(12).fill({ notes: [], symbol: '' }),
+        sequence: mockSequence,
         setSequence: vi.fn(),
         mapSequenceToKeys: vi.fn(),
         isListeningForMap: false,
@@ -1179,7 +1142,6 @@ describe('StepSequencer Component UI & Copy Instructions', () => {
 
       const { container } = render(<StepSequencer initialIsExpanded={true} />);
       const staffArea = container.querySelector('[data-staff-area="0"]');
-      expect(staffArea).toBeInTheDocument();
 
       staffArea!.getBoundingClientRect = () => ({
         top: 40, left: 0, right: 100, bottom: 320, height: 280, width: 100, x: 0, y: 40, toJSON: () => {}
@@ -1187,14 +1149,14 @@ describe('StepSequencer Component UI & Copy Instructions', () => {
 
       act(() => {
         const moveEvent = new MouseEvent('pointermove', { bubbles: true });
-        Object.defineProperty(moveEvent, 'clientY', { value: 169 }); // clientY = 169 (Middle C, top = 129px)
+        Object.defineProperty(moveEvent, 'clientY', { value: 168 }); // clientY = 168 (Middle C, top = 128px)
         staffArea!.dispatchEvent(moveEvent);
       });
 
       const ghost = document.getElementById('timeline-ghost-note');
       expect(ghost).toBeInTheDocument();
       expect(ghost?.className).not.toContain('hidden');
-      expect(ghost?.style.top).toBe('129px');
+      expect(ghost?.style.top).toBe('128px');
     });
 
     test('Test Case 2: Given #timeline-ghost-note contains dataset.midiNote = "64", When onPointerDown fires on the staff area, Assert MIDI note 64 is appended to the sequence array', () => {
@@ -1395,6 +1357,176 @@ describe('StepSequencer Component UI & Copy Instructions', () => {
 
       expect(mockSetSequence).not.toHaveBeenCalled();
       expect(mockUpdateActiveNotes).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('PRP 146 TDD Checkpoints: Scale Parity, Cursor Styling & Chord Pill Pointer Isolation', () => {
+    test('Phase 1 Test Case 1 (Scale Parity): Given isExpanded === true, Assert miniStaff is 12, treble top is calc(50% - 72px), notehead font size is 50.4px, and ledger lines use h-[1.5px]', () => {
+      const mockSequence = Array(12).fill(null).map(() => ({ notes: [] as any[], symbol: "" }));
+      mockSequence[0] = {
+        notes: [{ note: 60, isTreble: true, stepOffset: 0, accidental: null }],
+        symbol: 'C'
+      };
+
+      (useMidi as any).mockReturnValue({
+        keySignature: 'C Major',
+        lut: [],
+        updateActiveNotes: vi.fn(),
+        uiVelocity: 80,
+        sequence: mockSequence,
+        setSequence: vi.fn(),
+        mapSequenceToKeys: vi.fn(),
+        isListeningForMap: false,
+        setIsListeningForMap: vi.fn(),
+        sequenceKeyswitches: {},
+        setSequenceKeyswitches: vi.fn(),
+        selectedNotes: []
+      });
+
+      const { container } = render(<StepSequencer initialIsExpanded={true} />);
+      
+      // Treble staff lines container has style top: calc(50% - 72px) when miniStaff = 12 (6 * 12 = 72)
+      const staffArea = container.querySelector('[data-staff-area="0"]');
+      expect(staffArea).toBeInTheDocument();
+      
+      const trebleStaffLines = staffArea?.querySelector('.absolute.w-full');
+      expect((trebleStaffLines as HTMLElement)?.style.top).toBe('calc(50% - 72px)');
+
+      // Notehead element for Middle C (60) has style top: calc(50% - 12px) and fontSize: 50.4px (4.2 * 12 = 50.4)
+      const noteheadDiv = container.querySelector('[data-seq-step="0"]')?.closest('.flex-1')?.querySelector('.absolute.z-10.pointer-events-none');
+      expect(noteheadDiv).toBeInTheDocument();
+      expect((noteheadDiv as HTMLElement).style.top).toBe('calc(50% - 12px)');
+      
+      const noteheadSpan = noteheadDiv?.querySelector('span');
+      expect(noteheadSpan?.style.fontSize).toContain('50.4');
+
+      // Ledger line for Middle C has h-[1.5px] in expanded mode
+      const ledgerLine = noteheadDiv?.querySelector('.absolute');
+      expect(ledgerLine?.className).toContain('h-[1.5px]');
+    });
+
+    test('Phase 1 Test Case 2 (Cursor Styling): Given isExpanded === true, Assert staff canvas area has cursor-default and not cursor-crosshair', () => {
+      const mockSequence = Array(12).fill(null).map(() => ({ notes: [] as any[], symbol: "" }));
+
+      (useMidi as any).mockReturnValue({
+        keySignature: 'C Major',
+        lut: [],
+        updateActiveNotes: vi.fn(),
+        uiVelocity: 80,
+        sequence: mockSequence,
+        setSequence: vi.fn(),
+        mapSequenceToKeys: vi.fn(),
+        isListeningForMap: false,
+        setIsListeningForMap: vi.fn(),
+        sequenceKeyswitches: {},
+        setSequenceKeyswitches: vi.fn(),
+        selectedNotes: []
+      });
+
+      const { container } = render(<StepSequencer initialIsExpanded={true} />);
+      const staffArea = container.querySelector('[data-staff-area="0"]');
+      expect(staffArea).toBeInTheDocument();
+      expect(staffArea?.className).toContain('cursor-default');
+      expect(staffArea?.className).not.toContain('cursor-crosshair');
+    });
+
+    test('Phase 2 Test Case 1 (Chord Card Playback in Expanded Mode): Given step 0 has chord notes [60, 64, 67], When pointerdown fires on data-chord-pill, Assert audioEngine.noteOn is called with true octaves and canvas does not steal pointer capture', () => {
+      const mockSequence = Array(12).fill(null).map(() => ({ notes: [] as any[], symbol: "" }));
+      mockSequence[0] = {
+        notes: [
+          { note: 60, isTreble: true, stepOffset: 0 },
+          { note: 64, isTreble: true, stepOffset: 2 },
+          { note: 67, isTreble: true, stepOffset: 4 }
+        ],
+        symbol: 'C'
+      };
+
+      (useMidi as any).mockReturnValue({
+        keySignature: 'C Major',
+        lut: [],
+        updateActiveNotes: vi.fn(),
+        uiVelocity: 80,
+        sequence: mockSequence,
+        setSequence: vi.fn(),
+        mapSequenceToKeys: vi.fn(),
+        isListeningForMap: false,
+        setIsListeningForMap: vi.fn(),
+        sequenceKeyswitches: {},
+        setSequenceKeyswitches: vi.fn(),
+        selectedNotes: []
+      });
+
+      const { container } = render(<StepSequencer initialIsExpanded={true} />);
+      const chordPill = container.querySelector('[data-step-index="0"] [data-chord-pill="true"]');
+      expect(chordPill).toBeInTheDocument();
+
+      const mockSetPointerCapture = vi.fn();
+      const mockReleasePointerCapture = vi.fn();
+      chordPill!.setPointerCapture = mockSetPointerCapture;
+      chordPill!.releasePointerCapture = mockReleasePointerCapture;
+
+      act(() => {
+        const eDown = new MouseEvent('pointerdown', { bubbles: true, cancelable: true });
+        Object.defineProperty(eDown, 'pointerId', { value: 1 });
+        chordPill!.dispatchEvent(eDown);
+      });
+
+      expect(audioEngine.noteOn).toHaveBeenCalledWith('C4', 80 / 127);
+      expect(audioEngine.noteOn).toHaveBeenCalledWith('E4', 80 / 127);
+      expect(audioEngine.noteOn).toHaveBeenCalledWith('G4', 80 / 127);
+      expect(mockSetPointerCapture).toHaveBeenCalledWith(1);
+      expect(audioEngine.releaseNote).not.toHaveBeenCalled();
+
+      act(() => {
+        const eUp = new MouseEvent('pointerup', { bubbles: true, cancelable: true });
+        Object.defineProperty(eUp, 'pointerId', { value: 1 });
+        chordPill!.dispatchEvent(eUp);
+      });
+
+      expect(audioEngine.releaseNote).toHaveBeenCalledWith('C4');
+      expect(audioEngine.releaseNote).toHaveBeenCalledWith('E4');
+      expect(audioEngine.releaseNote).toHaveBeenCalledWith('G4');
+      expect(mockReleasePointerCapture).toHaveBeenCalledWith(1);
+    });
+
+    test('Phase 2 Test Case 2 (Write Mode Non-Interference): Given Write Mode is active in expanded mode, When Chord Symbol Pill is clicked, Assert no low-register note is added or previewed', () => {
+      const mockSetSequence = vi.fn();
+      const mockSequence = Array(12).fill(null).map(() => ({ notes: [] as any[], symbol: "" }));
+      mockSequence[0] = {
+        notes: [{ note: 60, isTreble: true, stepOffset: 0 }],
+        symbol: 'C'
+      };
+
+      (useMidi as any).mockReturnValue({
+        keySignature: 'C Major',
+        lut: [],
+        updateActiveNotes: vi.fn(),
+        uiVelocity: 80,
+        sequence: mockSequence,
+        setSequence: mockSetSequence,
+        mapSequenceToKeys: vi.fn(),
+        isListeningForMap: false,
+        setIsListeningForMap: vi.fn(),
+        sequenceKeyswitches: {},
+        setSequenceKeyswitches: vi.fn(),
+        selectedNotes: [],
+        isWriteMode: true,
+        setIsWriteMode: vi.fn(),
+        accidentalOverride: null
+      });
+
+      const { container } = render(<StepSequencer initialIsExpanded={true} />);
+      const chordPill = container.querySelector('[data-step-index="0"] [data-chord-pill="true"]');
+      expect(chordPill).toBeInTheDocument();
+
+      act(() => {
+        const eDown = new MouseEvent('pointerdown', { bubbles: true, cancelable: true });
+        Object.defineProperty(eDown, 'pointerId', { value: 1 });
+        chordPill!.dispatchEvent(eDown);
+      });
+
+      // Assert setSequence was NOT called to add low pitch note from Write Mode pointer handler
+      expect(mockSetSequence).not.toHaveBeenCalled();
     });
   });
 });

@@ -124,6 +124,11 @@ const NotationCanvas: React.FC = () => {
   };
 
   
+  const activeStaffShiftsRef = useRef<{ trebleShift: number; bassShift: number }>({
+    trebleShift: 0,
+    bassShift: 0
+  });
+
   // 1. Update staffSpace from CSS
   useEffect(() => {
     const updateStaffSpace = () => {
@@ -142,23 +147,34 @@ const NotationCanvas: React.FC = () => {
     const pointerY = clientY - rect.top;
     const canvasCenterY = rect.height / 2;
     const relativeY = canvasCenterY - pointerY;
-    let stepOffset = 0;
+    let visualStep = 0;
 
     if (relativeY >= 0) {
-        stepOffset = Math.round((relativeY - staffSpace) / (staffSpace / 2));
+        visualStep = Math.round((relativeY - staffSpace) / (staffSpace / 2));
     } else {
-        stepOffset = Math.round((relativeY + staffSpace) / (staffSpace / 2));
+        visualStep = Math.round((relativeY + staffSpace) / (staffSpace / 2));
     }
 
-    const snappedY = canvasCenterY - (((stepOffset) * (staffSpace / 2)) + (relativeY >= 0 ? staffSpace : -staffSpace));
+    const activeShift = visualStep >= 0 
+      ? activeStaffShiftsRef.current.trebleShift 
+      : activeStaffShiftsRef.current.bassShift;
+    const musicalStep = visualStep - activeShift;
+
+    const snappedY = canvasCenterY - (((visualStep) * (staffSpace / 2)) + (relativeY >= 0 ? staffSpace : -staffSpace));
 
     const ghost = document.getElementById('ghost-note');
     if (ghost) {
         ghost.classList.remove('hidden');
         ghost.style.top = `${snappedY}px`;
-        (ghost as any).dataset.step = stepOffset.toString();
+        (ghost as any).dataset.step = musicalStep.toString();
         
-        const { midiNote, accidental } = calculateWriteModePitch(stepOffset, keySignatureRef.current, accidentalOverrideRef.current, lutRef.current);
+        const { midiNote, accidental } = calculateWriteModePitch(
+            visualStep, 
+            keySignatureRef.current, 
+            accidentalOverrideRef.current, 
+            lutRef.current,
+            activeShift
+        );
         (ghost as any).dataset.midiNote = midiNote.toString();
         (ghost as any).dataset.accidental = accidental === null ? 'null' : accidental;
         
@@ -421,6 +437,7 @@ const NotationCanvas: React.FC = () => {
       updateSpellings();
       updateActiveNotes?.([...activeNotes.current]);
       recalculateLayout();
+      forceUpdate();
     }
   };
 
@@ -433,6 +450,7 @@ const NotationCanvas: React.FC = () => {
       updateSpellings();
       updateActiveNotes?.([...activeNotes.current]);
       recalculateLayout();
+      forceUpdate();
     }
   };
 
@@ -504,6 +522,11 @@ const NotationCanvas: React.FC = () => {
            bassShift = 7; bassLabel = { glyph: SMuFL.ottava, suffix: 'vb' }; 
         }
       }
+
+      activeStaffShiftsRef.current = {
+        trebleShift,
+        bassShift
+      };
 
 
 
@@ -1006,7 +1029,8 @@ const NotationCanvas: React.FC = () => {
     };
 
     const handleHistory = (e: any) => {
-      const { action } = e.detail;
+      const rawAction = e.detail?.action || e.detail?.type || '';
+      const action = String(rawAction).toUpperCase();
       switch (action) {
         case 'UNDO': undo(); break;
         case 'REDO': redo(); break;
@@ -1322,15 +1346,18 @@ const NotationCanvas: React.FC = () => {
         return;
       }
 
-      // Cmd/Ctrl + Z: Undo
-      if (e.key === 'z' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+      const keyLower = e.key.toLowerCase();
+
+      // Cmd/Ctrl + Z (Undo)
+      if (isCmdOrCtrl && !e.shiftKey && keyLower === 'z') {
         e.preventDefault();
         undo();
         return;
       }
 
-      // Cmd/Ctrl + Shift + Z (or Cmd+Y): Redo
-      if (((e.key === 'Z' || e.key === 'z') && e.shiftKey && (e.metaKey || e.ctrlKey)) || (e.key === 'y' && (e.metaKey || e.ctrlKey))) {
+      // Cmd/Ctrl + Shift + Z or Cmd/Ctrl + Y (Redo)
+      if (isCmdOrCtrl && ((e.shiftKey && keyLower === 'z') || keyLower === 'y')) {
         e.preventDefault();
         redo();
         return;

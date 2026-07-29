@@ -434,10 +434,12 @@ export function calculateWriteModePitch(
     stepOffset: number, 
     keySignature: string, 
     override: AccidentalOverride,
-    lut?: any[]
+    lut?: any[],
+    octaveShiftStep: number = 0
 ): { midiNote: number, accidental: string | null } {
-    const scaleStep = ((stepOffset % 7) + 7) % 7;
-    const octaveOffset = Math.floor(stepOffset / 7);
+    const effectiveStep = stepOffset - octaveShiftStep;
+    const scaleStep = ((effectiveStep % 7) + 7) % 7;
+    const octaveOffset = Math.floor(effectiveStep / 7);
     let targetOctave = 4 + octaveOffset;
     const basePCs = [0, 2, 4, 5, 7, 9, 11]; // Diatonic steps for C, D, E, F, G, A, B
 

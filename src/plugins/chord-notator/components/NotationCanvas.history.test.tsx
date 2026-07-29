@@ -169,4 +169,55 @@ describe('NotationCanvas - History and Write Mode', () => {
       expect(document.querySelectorAll('.notation-note-container').length).toBe(1);
     });
   });
+
+  test('Phase 1: APP_HISTORY bridge and Cmd+Y/Cmd+Shift+Z shortcuts', async () => {
+    const { container } = setupCanvas();
+
+    // Place Note 60
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', shiftKey: true, bubbles: true }));
+      fireEvent.pointerMove(container, { clientX: 500, clientY: 148 });
+      fireEvent.pointerDown(container, { clientX: 500, clientY: 148 });
+    });
+
+    await waitFor(() => {
+      expect(document.querySelectorAll('.notation-note-container').length).toBe(1);
+    });
+
+    // Test APP_HISTORY action: 'undo' (lowercase)
+    act(() => {
+      window.dispatchEvent(new CustomEvent('APP_HISTORY', { detail: { action: 'undo' } }));
+    });
+
+    await waitFor(() => {
+      expect(document.querySelectorAll('.notation-note-container').length).toBe(0);
+    });
+
+    // Test APP_HISTORY action: 'REDO' (uppercase)
+    act(() => {
+      window.dispatchEvent(new CustomEvent('APP_HISTORY', { detail: { action: 'REDO' } }));
+    });
+
+    await waitFor(() => {
+      expect(document.querySelectorAll('.notation-note-container').length).toBe(1);
+    });
+
+    // Test Cmd+Z uppercase 'Z' key value (e.g. CapsLock on)
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Z', metaKey: true, bubbles: true }));
+    });
+
+    await waitFor(() => {
+      expect(document.querySelectorAll('.notation-note-container').length).toBe(0);
+    });
+
+    // Test Cmd+Y Redo
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'y', metaKey: true, bubbles: true }));
+    });
+
+    await waitFor(() => {
+      expect(document.querySelectorAll('.notation-note-container').length).toBe(1);
+    });
+  });
 });
