@@ -891,4 +891,116 @@ describe('NotationCanvas - Structural Lock and Symmetrical Pill TDD Tests', () =
       expect(text === 'C' || text === 'Cmaj').toBe(true);
     });
   });
+
+  test('should cross unisons non-destructively without catching unselected voices (PRP #154 Test Case 1)', async () => {
+    (useMidi as any).mockReturnValue({
+      keySignature: 'C Major',
+      splitPoint: 60,
+      lut: Array(4096).fill(null),
+      updateActiveNotes: vi.fn(),
+    });
+
+    render(<NotationCanvas />);
+
+    // Load 4-note chord [60, 64, 67, 72] via refresh event with unique IDs
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: {
+          refresh: true,
+          notes: [
+            { id: 'v1', note: 60 },
+            { id: 'v2', note: 64 },
+            { id: 'v3', note: 67 },
+            { id: 'v4', note: 72 },
+          ],
+          targetSelection: [60] // Select only v1 (60)
+        }
+      }));
+    });
+
+    // 4 step-up transformations moving v1 from 60 to 64 (unison with v2)
+    for (let i = 0; i < 4; i++) {
+      act(() => {
+        window.dispatchEvent(new CustomEvent('APP_TRANSFORM', {
+          detail: { type: 'SEMI_UP', stepSize: 1, isUiClick: true }
+        }));
+      });
+    }
+
+    // 5th step-up transformation moving v1 to 65 (crossing above v2 at 64)
+    act(() => {
+      window.dispatchEvent(new CustomEvent('APP_TRANSFORM', {
+        detail: { type: 'SEMI_UP', stepSize: 1, isUiClick: true }
+      }));
+    });
+
+    await waitFor(() => {
+      const noteHead65 = document.querySelector('[data-midi-note="65"]');
+      const noteHead64 = document.querySelector('[data-midi-note="64"]');
+      expect(noteHead65).toBeInTheDocument();
+      expect(noteHead64).toBeInTheDocument();
+    });
+  });
+
+  test('should enforce 1-to-1 cardinality matching when targetSelection specifies single pitch of doubled unison (PRP #154 Test Case 2)', async () => {
+    (useMidi as any).mockReturnValue({
+      keySignature: 'C Major',
+      splitPoint: 60,
+      lut: Array(4096).fill(null),
+      updateActiveNotes: vi.fn(),
+    });
+
+    render(<NotationCanvas />);
+
+    // Dispatch refresh event with 2 unisons [64, 64, 67] and targetSelection: [64]
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: {
+          refresh: true,
+          notes: [
+            { id: 'a', note: 64 },
+            { id: 'b', note: 64 },
+            { id: 'c', note: 67 },
+          ],
+          targetSelection: [64]
+        }
+      }));
+    });
+
+    await waitFor(() => {
+      // Exactly 1 notehead should be selected
+      const selectedElements = document.querySelectorAll('.notation-notehead.selected');
+      expect(selectedElements.length).toBe(1);
+    });
+  });
+
+  test('should preserve distinct unique note IDs when refresh event receives doubled unison notes (PRP #155 Test Case 2)', async () => {
+    (useMidi as any).mockReturnValue({
+      keySignature: 'C Major',
+      splitPoint: 60,
+      lut: Array(4096).fill(null),
+      updateActiveNotes: vi.fn(),
+    });
+
+    render(<NotationCanvas />);
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: {
+          refresh: true,
+          notes: [
+            { id: 'a', note: 64 },
+            { id: 'b', note: 64 }
+          ]
+        }
+      }));
+    });
+
+    await waitFor(() => {
+      const noteHeadA = document.querySelector('[data-id="a"]');
+      const noteHeadB = document.querySelector('[data-id="b"]');
+      expect(noteHeadA).toBeInTheDocument();
+      expect(noteHeadB).toBeInTheDocument();
+    });
+  });
 });

@@ -171,6 +171,20 @@ describe('Phase 1: Math Utility Overhaul (enforcePianoRange)', () => {
         const result = enforcePianoRange(proposed, original);
         expect(result).toEqual([60]);
     });
+
+    it('should preserve unsorted order and duplicates during non-destructive range check (PRP #153 Test Case 1)', () => {
+        const proposedPitches = [65, 64];
+        const originalPitches = [60, 64];
+        const result = enforcePianoRange(proposedPitches, originalPitches);
+        expect(result).toEqual([65, 64]);
+    });
+
+    it('should preserve true unisons in order without deduplication (PRP #153)', () => {
+        const proposedPitches = [64, 64, 67];
+        const originalPitches = [60, 64, 67];
+        const result = enforcePianoRange(proposedPitches, originalPitches);
+        expect(result).toEqual([64, 64, 67]);
+    });
 });
 
 describe('Phase 2: assignXLevels and applyZipper armoring', () => {
@@ -183,5 +197,22 @@ describe('Phase 2: assignXLevels and applyZipper armoring', () => {
         expect(result.length).toBe(1);
         expect(result[0].xLevel).toBe(0);
     });
+
+    it('should handle unison layout without forcing accidental display on true unisons (PRP #153 Test Case 2)', () => {
+        const notes = [
+            { ySteps: 0, note: 60, id: 'n1' },
+            { ySteps: 0, note: 60, id: 'n2' }
+        ];
+        const result = assignXLevels(notes);
+        expect(result.length).toBe(2);
+        const left = result.find(n => !n.isRightColumn);
+        const right = result.find(n => n.isRightColumn);
+        expect(left).toBeDefined();
+        expect(right).toBeDefined();
+        expect(left?.xLevel).toBe(0);
+        expect(left?.forceAccidentalDisplay).toBeUndefined();
+        expect(right?.forceAccidentalDisplay).toBeUndefined();
+    });
 });
+
 

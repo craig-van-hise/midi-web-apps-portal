@@ -327,7 +327,9 @@ export function assignXLevels(notes: NotePosition[]): NotePosition[] {
             leftStack.push(group[0]);
             // Others go to right stack
             for (let i = 1; i < group.length; i++) {
-                group[i].forceAccidentalDisplay = true;
+                if (group[i].note !== group[0].note) {
+                    group[i].forceAccidentalDisplay = true;
+                }
                 rightStack.push(group[i]);
             }
         } else {
@@ -518,12 +520,11 @@ export const enforcePianoRange = (proposedNotes: number[], originalNotes: number
     if (originalNotes.length > 0) {
       return originalNotes;
     }
-    // Fallback for fresh live inputs: just strip the impossible notes
-    const filtered = proposedNotes.map(n => Number(n)).filter(n => !isNaN(n) && n >= 21 && n <= 108);
-    return Array.from(new Set(filtered)).sort((a, b) => a - b);
+    // Fallback for fresh live inputs: just filter invalid pitches without sorting
+    return proposedNotes.map(n => Number(n)).filter(n => !isNaN(n) && n >= 21 && n <= 108);
   }
   
-  const cleaned = proposedNotes.map(n => Number(n)).filter(n => !isNaN(n));
-  return Array.from(new Set(cleaned)).sort((a, b) => a - b);
+  // MANDATORY: Return array in original order without new Set() or .sort()
+  return proposedNotes.map(n => Number(n)).filter(n => !isNaN(n));
 };
 

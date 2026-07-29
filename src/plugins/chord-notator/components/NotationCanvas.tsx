@@ -213,19 +213,10 @@ const NotationCanvas: React.FC = () => {
       return { ...noteData, note: safePitches[index], sourceMidi: safePitches[index], spellingOverride: undefined };
     });
 
-    const uniqueNotes: typeof updatedNotes = [];
-    const seenPitches = new Set<number>();
-    updatedNotes.forEach(noteData => {
-      if (!seenPitches.has(noteData.note)) {
-        seenPitches.add(noteData.note);
-        uniqueNotes.push(noteData);
-      }
-    });
-
-    activeNotes.current = uniqueNotes;
+    activeNotes.current = updatedNotes;
 
     const newSelection = new Set<string>();
-    uniqueNotes.forEach(noteData => {
+    updatedNotes.forEach(noteData => {
       if (selectedNoteIds.current.has(noteData.id)) {
         newSelection.add(noteData.id);
       }
@@ -273,19 +264,10 @@ const NotationCanvas: React.FC = () => {
       return { ...noteData, note: safePitches[index], sourceMidi: safePitches[index], spellingOverride: undefined };
     });
 
-    const uniqueNotes: typeof updatedNotes = [];
-    const seenPitches = new Set<number>();
-    updatedNotes.forEach(noteData => {
-      if (!seenPitches.has(noteData.note)) {
-        seenPitches.add(noteData.note);
-        uniqueNotes.push(noteData);
-      }
-    });
-
-    activeNotes.current = uniqueNotes;
+    activeNotes.current = updatedNotes;
 
     const newSelection = new Set<string>();
-    uniqueNotes.forEach(noteData => {
+    updatedNotes.forEach(noteData => {
       if (selectedNoteIds.current.has(noteData.id)) {
         newSelection.add(noteData.id);
       }
@@ -366,22 +348,13 @@ const NotationCanvas: React.FC = () => {
       return { ...noteData, note, sourceMidi: note, spellingOverride: pcOverrides[targetPC] };
     });
 
-    const uniqueNotes: typeof updatedNotes = [];
-    const seenPitches = new Set<number>();
-    updatedNotes.forEach(noteData => {
-      if (!seenPitches.has(noteData.note)) {
-        seenPitches.add(noteData.note);
-        uniqueNotes.push(noteData);
-      }
-    });
-
-    activeNotes.current = uniqueNotes;
+    activeNotes.current = updatedNotes;
 
     // Immediately activate Identity Lock on rotation
     chordIdentityRef.current.isActive = true;
 
     const newSelection = new Set<string>();
-    uniqueNotes.forEach(noteData => {
+    updatedNotes.forEach(noteData => {
       if (selectedNoteIds.current.has(noteData.id)) {
         newSelection.add(noteData.id);
       }
@@ -830,34 +803,52 @@ const NotationCanvas: React.FC = () => {
         }
 
         if (notes) {
-          const itemPitches = notes.map((item: any) => typeof item === 'object' ? item.note : item);
-          const safePitches = enforcePianoRange(itemPitches, []);
-          activeNotes.current = safePitches.map((pitch: number) => {
-            const existing = notes.find((item: any) => (typeof item === 'object' ? item.note : item) === pitch);
-            if (existing && typeof existing === 'object' && existing.id) {
-              return { ...existing, note: pitch };
-            }
-            return {
-              id: generateId(),
-              note: pitch,
-              stepOffset: 0,
-              accidental: null,
-              isTreble: pitch >= splitPointRef.current,
-              sourceMidi: pitch
-            };
-          });
+          const cleanedNotes = notes
+            .map((item: any) => {
+              const pitch = Number(typeof item === 'object' ? item.note : item);
+              if (isNaN(pitch) || pitch < 21 || pitch > 108) return null;
+              if (typeof item === 'object' && item !== null && item.id) {
+                return {
+                  ...item,
+                  note: pitch,
+                  isTreble: pitch >= splitPointRef.current,
+                  sourceMidi: item.sourceMidi ?? pitch
+                };
+              }
+              return {
+                id: generateId(),
+                note: pitch,
+                stepOffset: 0,
+                accidental: null,
+                isTreble: pitch >= splitPointRef.current,
+                sourceMidi: pitch
+              };
+            })
+            .filter((item: any): item is ActiveNoteData => item !== null);
+
+          activeNotes.current = cleanedNotes;
         }
 
         if (Array.isArray(targetSelection)) {
           selectedNoteIds.current.clear();
           if (targetSelection.length > 0) {
-            activeNotes.current.forEach(note => {
-              if (targetSelection.includes(note.note)) {
-                selectedNoteIds.current.add(note.id);
-                lastSelectedNoteId.current = note.id; // For shift-click support later
+            const newSelectedIds = new Set<string>();
+            const availableNotes = [...activeNotes.current];
+            
+            targetSelection.forEach(targetPitch => {
+              const matchIdx = availableNotes.findIndex(
+                n => n.note === targetPitch && !newSelectedIds.has(n.id)
+              );
+              if (matchIdx !== -1) {
+                newSelectedIds.add(availableNotes[matchIdx].id);
+                lastSelectedNoteId.current = availableNotes[matchIdx].id;
               }
             });
-            const selectedPitches = activeNotes.current.map(n => n.note).filter(p => targetSelection.includes(p));
+            
+            selectedNoteIds.current = newSelectedIds;
+            const selectedPitches = activeNotes.current
+              .filter(n => newSelectedIds.has(n.id))
+              .map(n => n.note);
             setSelectedNotes?.(selectedPitches);
           } else {
             // Explicit empty array = deselect all notes (click-away)
@@ -1214,12 +1205,18 @@ const NotationCanvas: React.FC = () => {
     
     let clickedNote: any = undefined;
 
-    // Check DOM target first (crucial for JSDOM unit tests and direct note clicks)
+    // Check DOM target first — prioritize ID-based lookup for voice-specific resolution
     const targetNode = (e.target as HTMLElement)?.closest?.('[data-note-id]');
     if (targetNode) {
-        const notePitch = parseInt((targetNode as HTMLElement).dataset.noteId || '');
-        if (!isNaN(notePitch)) {
-            clickedNote = renderedNotes.find(n => n.note === notePitch);
+        const voiceId = (targetNode as HTMLElement).dataset.id;
+        if (voiceId) {
+            clickedNote = renderedNotes.find(n => n.id === voiceId);
+        }
+        if (!clickedNote) {
+            const notePitch = parseInt((targetNode as HTMLElement).dataset.noteId || '');
+            if (!isNaN(notePitch)) {
+                clickedNote = renderedNotes.find(n => n.note === notePitch);
+            }
         }
     }
 
@@ -1618,6 +1615,7 @@ const NotationCanvas: React.FC = () => {
               className="notation-note-container transition-all duration-75"
               data-midi-note={note.note}
               data-note-id={note.note}
+              data-id={note.id}
               data-testid={`note-container-${note.note}`}
               data-selected={selectedNoteIds.current.has(note.id) || undefined}
               style={{
@@ -1630,7 +1628,7 @@ const NotationCanvas: React.FC = () => {
             >
               {/* Visual Notehead (SMuFL) */}
               <div 
-                className="notehead" 
+                className={`notehead notation-notehead ${selectedNoteIds.current.has(note.id) ? 'selected' : ''}`}
                 style={{
                   fontFamily: "'Bravura', sans-serif",
                   fontSize: `calc(var(${STAFF_SPACE_CSS_VAR}) * 4.2)`,
